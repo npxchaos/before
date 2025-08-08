@@ -1,6 +1,6 @@
 "use client"
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient, User } from '@supabase/supabase-js'
 import { createContext, useContext, useEffect, useState } from 'react'
 
 // Initialize Supabase client
@@ -8,14 +8,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-// User type definition
-export interface User {
-  id: string
-  email: string
-  created_at: string
-  updated_at: string
-}
 
 // Auth error type
 interface AuthError {

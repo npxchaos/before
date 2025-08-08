@@ -47,12 +47,14 @@ export function UserMenu({ className }: UserMenuProps) {
         className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent transition-colors"
         aria-label="User menu"
       >
-        <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
-          {user.email?.charAt(0).toUpperCase() || "U"}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
+            {user.email?.charAt(0).toUpperCase() || "U"}
+          </div>
+          <div className="hidden md:block">
+            <p className="text-sm font-medium text-foreground">{user.email || 'User'}</p>
+          </div>
         </div>
-        <span className="hidden sm:block text-sm text-foreground">
-          {user.email}
-        </span>
         <svg
           className={cn(
             "w-4 h-4 text-muted-foreground transition-transform",
@@ -70,7 +72,7 @@ export function UserMenu({ className }: UserMenuProps) {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 bg-background border border-border rounded-md shadow-lg py-1 z-50">
           <div className="px-4 py-2 border-b border-border">
-            <p className="text-sm font-medium text-foreground">{user.email}</p>
+            <p className="text-sm font-medium text-foreground">{user.email || 'User'}</p>
             <p className="text-xs text-muted-foreground">
               Member since {new Date(user.created_at).toLocaleDateString()}
             </p>

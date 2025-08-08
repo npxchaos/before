@@ -172,9 +172,8 @@ export function Hero(): ReactElement {
 
           {/* User status indicator */}
           {user && (
-            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-full text-sm">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              Signed in as {user.email}
+            <div className="text-sm text-muted-foreground">
+              Signed in as {user.email || 'User'}
             </div>
           )}
 

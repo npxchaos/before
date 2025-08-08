@@ -89,7 +89,7 @@ export function DashboardContent() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground mt-2">
-            Welcome back, {user?.email}
+            Welcome back, {user?.email || 'User'}
           </p>
         </div>
 
