@@ -1,8 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { cn } from "@/lib/utils"
+import { 
+  Toast, 
+  ToastMessage, 
+  ProgressIndicator, 
+  ErrorMessage, 
+  SuccessMessage,
+  LoadingButton 
+} from "@/components/ui/FeedbackComponents"
 
 interface SignupFormProps {
   onSuccess?: () => void
@@ -18,6 +26,13 @@ export function SignupForm({ onSuccess, onSwitchToLogin, className }: SignupForm
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [toast, setToast] = useState<ToastMessage | null>(null)
+  const [currentStep, setCurrentStep] = useState(0)
+  const [isValidating, setIsValidating] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [isComplete, setIsComplete] = useState(false)
+
+  const totalSteps = 4 // Validation, Creation, Email Verification, Complete
 
   const validatePassword = (password: string) => {
     const minLength = 8
@@ -44,45 +59,121 @@ export function SignupForm({ onSuccess, onSwitchToLogin, className }: SignupForm
     return null
   }
 
+  const showToast = (message: string, type: ToastMessage["type"]) => {
+    setToast({
+      id: Date.now().toString(),
+      type,
+      message
+    })
+  }
+
+  const closeToast = () => {
+    setToast(null)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
     setSuccess(null)
+    setCurrentStep(1)
+
+    // Step 1: Validation
+    setIsValidating(true)
+    setCurrentStep(1)
+    
+    // Simulate validation time for better UX
+    await new Promise(resolve => setTimeout(resolve, 800))
 
     // Validate password
     const passwordError = validatePassword(password)
     if (passwordError) {
       setError(passwordError)
+      showToast(passwordError, "error")
       setIsLoading(false)
+      setIsValidating(false)
+      setCurrentStep(0)
       return
     }
 
     // Check password confirmation
     if (password !== confirmPassword) {
       setError("Passwords do not match")
+      showToast("Passwords do not match", "error")
       setIsLoading(false)
+      setIsValidating(false)
+      setCurrentStep(0)
       return
     }
+
+    // Step 2: Account Creation
+    setIsValidating(false)
+    setIsCreating(true)
+    setCurrentStep(2)
 
     try {
       const { error } = await signUp(email, password)
       
       if (error) {
         setError(error.message)
+        showToast(error.message, "error")
+        setCurrentStep(0)
       } else {
+        // Step 3: Email Verification
+        setCurrentStep(3)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        
+        // Step 4: Complete
+        setCurrentStep(4)
+        setIsComplete(true)
+        
         setSuccess("Account created successfully! Please check your email to verify your account.")
-        onSuccess?.()
+        showToast("Account created successfully! Check your email for verification.", "success")
+        
+        // Auto-close modal after success
+        setTimeout(() => {
+          onSuccess?.()
+        }, 2000)
       }
     } catch {
       setError("An unexpected error occurred. Please try again.")
+      showToast("An unexpected error occurred. Please try again.", "error")
+      setCurrentStep(0)
     } finally {
       setIsLoading(false)
+      setIsCreating(false)
     }
   }
 
+  // Auto-hide toast after 5 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        closeToast()
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [toast])
+
   return (
     <div className={cn("w-full max-w-md mx-auto", className)}>
+      {/* Progress Indicator */}
+      {isLoading && (
+        <ProgressIndicator currentStep={currentStep} totalSteps={totalSteps} />
+      )}
+
+      {/* Step Labels */}
+      {isLoading && (
+        <div className="mb-4 text-center">
+          <div className="text-sm text-muted-foreground">
+            {currentStep === 1 && "Validating your information..."}
+            {currentStep === 2 && "Creating your account..."}
+            {currentStep === 3 && "Setting up email verification..."}
+            {currentStep === 4 && "Account created successfully!"}
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="signup-email" className="block text-sm font-medium text-foreground mb-2">
@@ -95,7 +186,11 @@ export function SignupForm({ onSuccess, onSwitchToLogin, className }: SignupForm
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={isLoading}
-            className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
+            className={cn(
+              "w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200",
+              isLoading && "opacity-50 cursor-not-allowed",
+              error && "border-red-500 focus:ring-red-500"
+            )}
             placeholder="Enter your email"
           />
         </div>
@@ -111,7 +206,11 @@ export function SignupForm({ onSuccess, onSwitchToLogin, className }: SignupForm
             onChange={(e) => setPassword(e.target.value)}
             required
             disabled={isLoading}
-            className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
+            className={cn(
+              "w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200",
+              isLoading && "opacity-50 cursor-not-allowed",
+              error && "border-red-500 focus:ring-red-500"
+            )}
             placeholder="Create a password"
           />
           <p className="text-xs text-muted-foreground mt-1">
@@ -130,43 +229,55 @@ export function SignupForm({ onSuccess, onSwitchToLogin, className }: SignupForm
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
             disabled={isLoading}
-            className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50"
+            className={cn(
+              "w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200",
+              isLoading && "opacity-50 cursor-not-allowed",
+              error && "border-red-500 focus:ring-red-500"
+            )}
             placeholder="Confirm your password"
           />
         </div>
 
-        {error && (
-          <div className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
-            {error}
-          </div>
-        )}
+        {error && <ErrorMessage message={error} />}
+        {success && <SuccessMessage message={success} />}
 
-        {success && (
-          <div className="text-sm text-green-600 bg-green-50 dark:bg-green-900/20 p-3 rounded-md">
-            {success}
-          </div>
-        )}
-
-        <button
+        <LoadingButton
           type="submit"
-          disabled={isLoading}
-          className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          isLoading={isLoading}
+          isComplete={isComplete}
+          loadingText={
+            isValidating ? "Validating..." :
+            isCreating ? "Creating account..." :
+            isComplete ? "Account created!" : "Creating account..."
+          }
+          completeText="Account created!"
         >
-          {isLoading ? "Creating account..." : "Create Account"}
-        </button>
+          Create Account
+        </LoadingButton>
 
         {onSwitchToLogin && (
           <div className="text-center">
             <button
               type="button"
               onClick={onSwitchToLogin}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              disabled={isLoading}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
             >
               Already have an account? Sign in
             </button>
           </div>
         )}
       </form>
+
+      {/* Toast notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={closeToast}
+        />
+      )}
     </div>
   )
 }
+
