@@ -30,23 +30,7 @@ function EmailVerificationScreen({
   onSwitchToLogin: () => void
   onClose: () => void
 }) {
-  const [countdown, setCountdown] = useState(10)
   const [isResending, setIsResending] = useState(false)
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          onClose()
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [onClose])
 
   const handleResendEmail = async () => {
     setIsResending(true)
@@ -121,19 +105,6 @@ function EmailVerificationScreen({
         >
           Close
         </button>
-      </div>
-
-      {/* Countdown */}
-      <div className="text-xs text-muted-foreground">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <span>Auto-closing in {countdown} seconds</span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-1 dark:bg-gray-700">
-          <div 
-            className="bg-primary h-1 rounded-full transition-all duration-1000"
-            style={{ width: `${((10 - countdown) / 10) * 100}%` }}
-          />
-        </div>
       </div>
     </div>
   )
