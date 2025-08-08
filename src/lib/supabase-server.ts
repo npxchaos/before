@@ -8,6 +8,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const createSupabaseServer = () => {
   if (!supabaseUrl || !supabaseServiceKey) {
     // Return a mock client for build time
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return {
       auth: {
         getUser: async () => ({ data: { user: null }, error: null }),
@@ -36,6 +37,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const createSupabaseClient = () => {
   if (!supabaseUrl || !supabaseAnonKey) {
     // Return a mock client for build time
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return {
       auth: {
         getUser: async () => ({ data: { user: null }, error: null }),
