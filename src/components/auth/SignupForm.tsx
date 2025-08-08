@@ -74,7 +74,7 @@ export function SignupForm({ onSuccess, onSwitchToLogin, className }: SignupForm
         setSuccess("Account created successfully! Please check your email to verify your account.")
         onSuccess?.()
       }
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred. Please try again.")
     } finally {
       setIsLoading(false)

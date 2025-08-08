@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useAuth, supabase } from "@/components/providers/AuthProvider"
 import { cn } from "@/lib/utils"
 
@@ -18,13 +18,7 @@ export function DashboardContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (user) {
-      fetchSubmissions()
-    }
-  }, [user])
-
-  const fetchSubmissions = async () => {
+  const fetchSubmissions = useCallback(async () => {
     try {
       setLoading(true)
       const { data, error } = await supabase
@@ -44,7 +38,13 @@ export function DashboardContent() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.id])
+
+  useEffect(() => {
+    if (user) {
+      fetchSubmissions()
+    }
+  }, [user, fetchSubmissions])
 
   const getStatusColor = (status: string) => {
     switch (status) {

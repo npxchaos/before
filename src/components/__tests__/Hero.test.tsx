@@ -1,6 +1,9 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Hero } from '../Hero'
+
+// Mock fetch globally
+global.fetch = jest.fn()
 
 // Mock the utils function
 jest.mock('@/lib/utils', () => ({

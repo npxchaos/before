@@ -119,7 +119,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<SubmitUrl
     const user = await getUserFromAuth(authHeader);
 
     // Prepare submission data
-    const submissionData: any = {
+    const submissionData: {
+      url: string;
+      created_at: string;
+      status: string;
+      user_id?: string;
+    } = {
       url: url.trim(),
       created_at: new Date().toISOString(),
       status: "pending"

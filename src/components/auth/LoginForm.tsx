@@ -30,7 +30,7 @@ export function LoginForm({ onSuccess, onSwitchToSignup, className }: LoginFormP
       } else {
         onSuccess?.()
       }
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred. Please try again.")
     } finally {
       setIsLoading(false)
@@ -93,7 +93,7 @@ export function LoginForm({ onSuccess, onSwitchToSignup, className }: LoginFormP
               onClick={onSwitchToSignup}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              Don't have an account? Sign up
+              Don&apos;t have an account? Sign up
             </button>
           </div>
         )}

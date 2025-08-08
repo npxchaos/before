@@ -1,7 +1,7 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import { createContext, useContext, useEffect, useState } from 'react'
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -17,14 +17,20 @@ export interface User {
   updated_at: string
 }
 
+// Auth error type
+interface AuthError {
+  message: string
+  status?: number
+}
+
 // Auth context type
 interface AuthContextType {
   user: User | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<{ error: any }>
-  signUp: (email: string, password: string) => Promise<{ error: any }>
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
+  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>
   signOut: () => Promise<void>
-  resetPassword: (email: string) => Promise<{ error: any }>
+  resetPassword: (email: string) => Promise<{ error: AuthError | null }>
 }
 
 // Create auth context
@@ -61,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email,
       password,
     })
-    return { error }
+    return { error: error ? { message: error.message } : null }
   }
 
   const signUp = async (email: string, password: string) => {
@@ -69,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email,
       password,
     })
-    return { error }
+    return { error: error ? { message: error.message } : null }
   }
 
   const signOut = async () => {
@@ -80,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     })
-    return { error }
+    return { error: error ? { message: error.message } : null }
   }
 
   const value = {
