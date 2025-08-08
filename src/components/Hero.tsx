@@ -2,6 +2,7 @@
 import { useState, useCallback } from "react";
 import type { ReactElement } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth, supabase } from "@/components/providers/AuthProvider";
 
 // TypeScript interfaces
 interface FormData {
@@ -15,12 +16,14 @@ interface ApiResponse {
     id: string;
     url: string;
     status: string;
+    createdAt: string;
+    userId?: string;
   };
 }
 
 interface ToastMessage {
   id: string;
-  type: "success" | "error" | "info";
+  type: "success" | "error";
   message: string;
 }
 
@@ -58,6 +61,7 @@ function Toast({ message, type, onClose }: { message: string; type: ToastMessage
 }
 
 export function Hero(): ReactElement {
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -86,11 +90,21 @@ export function Hero(): ReactElement {
         throw new Error("Please enter a valid URL (e.g., https://example.com)");
       }
 
+      // Get session token if user is authenticated
+      let authHeader = "";
+      if (user) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          authHeader = `Bearer ${session.access_token}`;
+        }
+      }
+
       // API call
       const response = await fetch("/api/submit-url", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(authHeader && { "Authorization": authHeader }),
         },
         body: JSON.stringify({ url: url.trim() } as FormData),
       });
@@ -138,26 +152,31 @@ export function Hero(): ReactElement {
       // Reset submission lock after a delay
       setTimeout(() => setIsSubmitting(false), 2000);
     }
-  }, [isSubmitting]);
+  }, [isSubmitting, user]);
 
   const closeToast = useCallback(() => {
     setToast(null);
   }, []);
 
   return (
-    <section className="relative w-full min-h-[100svh] flex items-center justify-center">
-      <div className="mx-auto max-w-[1200px] px-6 w-full flex flex-col items-center text-center">
-        <div className="max-w-[1100px] mx-auto">
-          <p className="text-sm mb-8 text-foreground/80">Get featured answers in AI</p>
-          <h1 className="text-[40px] sm:text-[64px] md:text-[96px] font-extrabold leading-[1.02] tracking-tight">
-            turn any webpage into
-            <br />
-            an AI answer engine
+    <section className="relative overflow-hidden">
+      <div className="mx-auto max-w-[1200px] px-6 py-20">
+        <div className="text-center">
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
+            Turn any webpage into{" "}
+            <span className="text-primary">an AI answer engine</span>
           </h1>
-          <p className="mt-8 max-w-2xl mx-auto text-base sm:text-lg text-foreground/85">
-            Get featured answers in Google Search and AI tools like ChatGPT, Google AI
-            Overviews, Claude, Gemini, Grok, Perplexity, and more.
+          <p className="mt-6 text-lg md:text-xl text-muted-foreground max-w-[600px] mx-auto">
+            Get featured answers in Google Search and AI tools like ChatGPT, Google AI Overviews, Claude, Gemini, Grok, Perplexity, and more.
           </p>
+
+          {/* User status indicator */}
+          {user && (
+            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-full text-sm">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              Signed in as {user.email}
+            </div>
+          )}
 
           <div className="mt-12 w-full">
             <form

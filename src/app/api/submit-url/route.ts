@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseClient } from "@/lib/supabase-server";
 
 // TypeScript interfaces
 interface SubmitUrlRequest {
@@ -14,14 +14,9 @@ interface SubmitUrlResponse {
     url: string;
     status: string;
     createdAt: string;
+    userId?: string;
   };
 }
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 // URL validation function (server-side)
 function isValidUrl(url: string): boolean {
@@ -53,6 +48,26 @@ function isRateLimited(ip: string): boolean {
   
   submissionStore.set(ip, submissions + 1);
   return false;
+}
+
+// Get user from authorization header
+async function getUserFromAuth(authHeader: string | null) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authHeader.substring(7);
+  
+  try {
+    const { data: { user }, error } = await supabaseClient.auth.getUser(token);
+    if (error || !user) {
+      return null;
+    }
+    return user;
+  } catch (error) {
+    console.error('Error getting user from token:', error);
+    return null;
+  }
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<SubmitUrlResponse>> {
@@ -99,14 +114,26 @@ export async function POST(request: NextRequest): Promise<NextResponse<SubmitUrl
       );
     }
 
+    // Get user from authorization header
+    const authHeader = request.headers.get("authorization");
+    const user = await getUserFromAuth(authHeader);
+
+    // Prepare submission data
+    const submissionData: any = {
+      url: url.trim(),
+      created_at: new Date().toISOString(),
+      status: "pending"
+    };
+
+    // Add user ID if authenticated
+    if (user) {
+      submissionData.user_id = user.id;
+    }
+
     // Save to Supabase database
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from("submissions")
-      .insert([{ 
-        url: url.trim(), 
-        created_at: new Date().toISOString(),
-        status: "pending"
-      }])
+      .insert([submissionData])
       .select()
       .single();
 
@@ -130,6 +157,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<SubmitUrl
         url: data.url,
         status: data.status,
         createdAt: data.created_at,
+        userId: data.user_id || undefined,
       },
     });
 
