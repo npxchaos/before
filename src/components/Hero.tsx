@@ -113,9 +113,17 @@ export function Hero(): ReactElement {
         message: "URL submitted successfully! We'll process it shortly.",
       });
 
-      // Clear form
+      // Clear form - use a more robust approach
       const form = e.currentTarget;
-      form.reset();
+      if (form && form instanceof HTMLFormElement) {
+        form.reset();
+      } else {
+        // Fallback: clear the input directly using document
+        const input = document.querySelector('input[name="url"]') as HTMLInputElement;
+        if (input) {
+          input.value = '';
+        }
+      }
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
