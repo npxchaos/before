@@ -1,4 +1,25 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createClient } from '@supabase/supabase-js'
+
+// Mock client type for build time
+type MockClient = {
+  auth: {
+    getUser: () => Promise<{ data: { user: null }, error: null }>
+    getSession: () => Promise<{ data: { session: null }, error: null }>
+  }
+  from: (table: string) => {
+    insert: (data: unknown) => {
+      select: () => {
+        single: () => Promise<{ data: null, error: null }>
+      }
+    }
+    select: () => {
+      eq: (column: string, value: unknown) => {
+        order: (column: string, options: unknown) => Promise<{ data: unknown[], error: null }>
+      }
+    }
+  }
+}
 
 // Server-side Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -8,7 +29,6 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const createSupabaseServer = () => {
   if (!supabaseUrl || !supabaseServiceKey) {
     // Return a mock client for build time
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return {
       auth: {
         getUser: async () => ({ data: { user: null }, error: null }),
@@ -37,7 +57,6 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const createSupabaseClient = () => {
   if (!supabaseUrl || !supabaseAnonKey) {
     // Return a mock client for build time
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return {
       auth: {
         getUser: async () => ({ data: { user: null }, error: null }),
