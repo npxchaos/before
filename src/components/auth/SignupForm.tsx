@@ -18,6 +18,127 @@ interface SignupFormProps {
   className?: string
 }
 
+// Email verification screen component
+function EmailVerificationScreen({ 
+  email, 
+  onResendEmail, 
+  onSwitchToLogin, 
+  onClose 
+}: { 
+  email: string
+  onResendEmail: () => void
+  onSwitchToLogin: () => void
+  onClose: () => void
+}) {
+  const [countdown, setCountdown] = useState(10)
+  const [isResending, setIsResending] = useState(false)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          onClose()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [onClose])
+
+  const handleResendEmail = async () => {
+    setIsResending(true)
+    await onResendEmail()
+    setIsResending(false)
+  }
+
+  const handleCheckEmail = () => {
+    // Try to open email client
+    window.open(`mailto:${email}`, '_blank')
+  }
+
+  return (
+    <div className="text-center space-y-6">
+      {/* Success Icon */}
+      <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
+        <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        </svg>
+      </div>
+
+      {/* Success Message */}
+      <div>
+        <h3 className="text-lg font-semibold text-foreground mb-2">
+          Account Created Successfully!
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          We&apos;ve sent a verification email to activate your account.
+        </p>
+      </div>
+
+      {/* Email Display */}
+      <div className="bg-muted/50 dark:bg-muted/20 rounded-lg p-4">
+        <p className="text-xs text-muted-foreground mb-1">Verification email sent to:</p>
+        <p className="text-sm font-medium text-foreground">{email}</p>
+      </div>
+
+      {/* Instructions */}
+      <div className="text-sm text-muted-foreground space-y-2">
+        <p>Please check your email and click the verification link to activate your account.</p>
+        <p>Don&apos;t see the email? Check your spam folder.</p>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          onClick={handleCheckEmail}
+          className="flex-1 bg-primary text-primary-foreground py-2 px-4 rounded-md hover:bg-primary/90 transition-colors"
+        >
+          📧 Check Email
+        </button>
+        <button
+          onClick={handleResendEmail}
+          disabled={isResending}
+          className="flex-1 bg-secondary text-secondary-foreground py-2 px-4 rounded-md hover:bg-secondary/90 transition-colors disabled:opacity-50"
+        >
+          {isResending ? "Sending..." : "Resend Email"}
+        </button>
+      </div>
+
+      {/* Additional Actions */}
+      <div className="flex justify-center gap-4 text-sm">
+        <button
+          onClick={onSwitchToLogin}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Switch to Login
+        </button>
+        <button
+          onClick={onClose}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Close
+        </button>
+      </div>
+
+      {/* Countdown */}
+      <div className="text-xs text-muted-foreground">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <span>Auto-closing in {countdown} seconds</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-1 dark:bg-gray-700">
+          <div 
+            className="bg-primary h-1 rounded-full transition-all duration-1000"
+            style={{ width: `${((10 - countdown) / 10) * 100}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function SignupForm({ onSuccess, onSwitchToLogin, className }: SignupFormProps) {
   const { signUp } = useAuth()
   const [email, setEmail] = useState("")
@@ -31,6 +152,7 @@ export function SignupForm({ onSuccess, onSwitchToLogin, className }: SignupForm
   const [isValidating, setIsValidating] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
+  const [showEmailVerification, setShowEmailVerification] = useState(false)
 
   const totalSteps = 4 // Validation, Creation, Email Verification, Complete
 
@@ -69,6 +191,29 @@ export function SignupForm({ onSuccess, onSwitchToLogin, className }: SignupForm
 
   const closeToast = () => {
     setToast(null)
+  }
+
+  const handleResendEmail = async () => {
+    try {
+      const { error } = await signUp(email, password)
+      if (error) {
+        showToast(error.message, "error")
+      } else {
+        showToast("Verification email resent successfully!", "success")
+      }
+    } catch {
+      showToast("Failed to resend verification email. Please try again.", "error")
+    }
+  }
+
+  const handleCloseModal = () => {
+    setShowEmailVerification(false)
+    onSuccess?.()
+  }
+
+  const handleSwitchToLogin = () => {
+    setShowEmailVerification(false)
+    onSwitchToLogin?.()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,10 +275,8 @@ export function SignupForm({ onSuccess, onSwitchToLogin, className }: SignupForm
         setSuccess("Account created successfully! Please check your email to verify your account.")
         showToast("Account created successfully! Check your email for verification.", "success")
         
-        // Auto-close modal after success
-        setTimeout(() => {
-          onSuccess?.()
-        }, 2000)
+        // Show email verification screen instead of auto-closing
+        setShowEmailVerification(true)
       }
     } catch {
       setError("An unexpected error occurred. Please try again.")
@@ -154,6 +297,29 @@ export function SignupForm({ onSuccess, onSwitchToLogin, className }: SignupForm
       return () => clearTimeout(timer)
     }
   }, [toast])
+
+  // Show email verification screen
+  if (showEmailVerification) {
+    return (
+      <div className={cn("w-full max-w-md mx-auto", className)}>
+        <EmailVerificationScreen
+          email={email}
+          onResendEmail={handleResendEmail}
+          onSwitchToLogin={handleSwitchToLogin}
+          onClose={handleCloseModal}
+        />
+        
+        {/* Toast notification */}
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={closeToast}
+          />
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className={cn("w-full max-w-md mx-auto", className)}>
