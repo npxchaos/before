@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 // TypeScript interfaces
 interface SubmitUrlRequest {
@@ -15,6 +16,12 @@ interface SubmitUrlResponse {
     createdAt: string;
   };
 }
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 // URL validation function (server-side)
 function isValidUrl(url: string): boolean {
@@ -92,22 +99,37 @@ export async function POST(request: NextRequest): Promise<NextResponse<SubmitUrl
       );
     }
 
-    // TODO: Integrate with Supabase here
-    // For now, we'll simulate a successful submission
-    const submissionId = `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Save to Supabase database
+    const { data, error } = await supabase
+      .from("submissions")
+      .insert([{ 
+        url: url.trim(), 
+        created_at: new Date().toISOString(),
+        status: "pending"
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Supabase insert error:", error.message);
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Failed to save URL to database. Please try again.",
+        },
+        { status: 500 }
+      );
+    }
 
     // Success response
     return NextResponse.json({
       success: true,
       message: "URL submitted successfully!",
       data: {
-        id: submissionId,
-        url: url.trim(),
-        status: "pending",
-        createdAt: new Date().toISOString(),
+        id: data.id,
+        url: data.url,
+        status: data.status,
+        createdAt: data.created_at,
       },
     });
 
