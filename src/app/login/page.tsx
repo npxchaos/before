@@ -1,12 +1,22 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { LoginForm } from "@/components/auth/LoginForm"
 import { SignupForm } from "@/components/auth/SignupForm"
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className={cn("min-h-screen bg-background flex items-center justify-center px-4")}>
+      <div className={cn("w-full max-w-md border border-border rounded-2xl bg-card p-6 shadow-sm text-center")}>Loading…</div>
+    </div>}>
+      <LoginPageContent />
+    </Suspense>
+  )
+}
+
+function LoginPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const next = searchParams.get("next") || "/dashboard"

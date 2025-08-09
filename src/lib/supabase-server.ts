@@ -26,19 +26,20 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 // Create a fallback client for build time
-const createSupabaseServer = () => {
+function createSupabaseServer(): any {
   if (!supabaseUrl || !supabaseServiceKey) {
     // Return a mock client for build time
-    return {
+    const mock: MockClient = {
       auth: {
         getUser: async () => ({ data: { user: null }, error: null }),
         getSession: async () => ({ data: { session: null }, error: null })
       },
       from: () => ({
         insert: () => ({ select: () => ({ single: async () => ({ data: null, error: null }) }) }),
-        select: () => ({ eq: () => ({ order: () => ({ data: [], error: null }) }) })
+        select: () => ({ eq: () => ({ order: async () => ({ data: [], error: null }) }) })
       })
-    } as any
+    }
+    return mock
   }
 
   return createClient(supabaseUrl, supabaseServiceKey, {
@@ -46,7 +47,7 @@ const createSupabaseServer = () => {
       autoRefreshToken: false,
       persistSession: false
     }
-  })
+  }) as any
 }
 
 export const supabaseServer = createSupabaseServer()
@@ -54,22 +55,23 @@ export const supabaseServer = createSupabaseServer()
 // Client-side Supabase client (for API routes that need it)
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-const createSupabaseClient = () => {
+function createSupabaseClient(): any {
   if (!supabaseUrl || !supabaseAnonKey) {
     // Return a mock client for build time
-    return {
+    const mock: MockClient = {
       auth: {
         getUser: async () => ({ data: { user: null }, error: null }),
         getSession: async () => ({ data: { session: null }, error: null })
       },
       from: () => ({
         insert: () => ({ select: () => ({ single: async () => ({ data: null, error: null }) }) }),
-        select: () => ({ eq: () => ({ order: () => ({ data: [], error: null }) }) })
+        select: () => ({ eq: () => ({ order: async () => ({ data: [], error: null }) }) })
       })
-    } as any
+    }
+    return mock
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey)
+  return createClient(supabaseUrl, supabaseAnonKey) as any
 }
 
 export const supabaseClient = createSupabaseClient()
