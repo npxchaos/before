@@ -1,11 +1,21 @@
--- Create alert_severity enum
-CREATE TYPE alert_severity AS ENUM ('info', 'warning', 'error', 'critical');
+-- Create alert_severity enum (idempotent)
+DO $$
+BEGIN
+  CREATE TYPE alert_severity AS ENUM ('info', 'warning', 'error', 'critical');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
--- Create alert_status enum
-CREATE TYPE alert_status AS ENUM ('active', 'acknowledged', 'resolved');
+-- Create alert_status enum (idempotent)
+DO $$
+BEGIN
+  CREATE TYPE alert_status AS ENUM ('active', 'acknowledged', 'resolved');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Create monitoring_alerts table
-CREATE TABLE monitoring_alerts (
+CREATE TABLE IF NOT EXISTS monitoring_alerts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     severity alert_severity NOT NULL,
     status alert_status NOT NULL DEFAULT 'active',
@@ -20,7 +30,7 @@ CREATE TABLE monitoring_alerts (
 );
 
 -- Create monitoring_metrics table for time-series data
-CREATE TABLE monitoring_metrics (
+CREATE TABLE IF NOT EXISTS monitoring_metrics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     metric_name TEXT NOT NULL,
     metric_value NUMERIC NOT NULL,
@@ -28,13 +38,13 @@ CREATE TABLE monitoring_metrics (
     timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create indexes
-CREATE INDEX idx_alerts_status ON monitoring_alerts(status);
-CREATE INDEX idx_alerts_severity ON monitoring_alerts(severity);
-CREATE INDEX idx_alerts_type ON monitoring_alerts(type);
-CREATE INDEX idx_alerts_created_at ON monitoring_alerts(created_at);
-CREATE INDEX idx_metrics_name ON monitoring_metrics(metric_name);
-CREATE INDEX idx_metrics_timestamp ON monitoring_metrics(timestamp);
+-- Create indexes (idempotent)
+CREATE INDEX IF NOT EXISTS idx_alerts_status ON monitoring_alerts(status);
+CREATE INDEX IF NOT EXISTS idx_alerts_severity ON monitoring_alerts(severity);
+CREATE INDEX IF NOT EXISTS idx_alerts_type ON monitoring_alerts(type);
+CREATE INDEX IF NOT EXISTS idx_alerts_created_at ON monitoring_alerts(created_at);
+CREATE INDEX IF NOT EXISTS idx_metrics_name ON monitoring_metrics(metric_name);
+CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON monitoring_metrics(timestamp);
 
 -- Create function to check error rates
 CREATE OR REPLACE FUNCTION check_error_rates()
@@ -264,7 +274,11 @@ CREATE TRIGGER monitor_submissions
 ALTER TABLE monitoring_alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monitoring_metrics ENABLE ROW LEVEL SECURITY;
 
--- Policies for alerts
+-- Policies for alerts (idempotent)
+DROP POLICY IF EXISTS "Allow service role full access to alerts" ON monitoring_alerts;
+DROP POLICY IF EXISTS "Allow admins to view alerts" ON monitoring_alerts;
+DROP POLICY IF EXISTS "Allow admins to acknowledge alerts" ON monitoring_alerts;
+
 CREATE POLICY "Allow service role full access to alerts"
     ON monitoring_alerts
     USING (auth.role() = 'service_role');
@@ -281,7 +295,10 @@ CREATE POLICY "Allow admins to acknowledge alerts"
         auth.role() = 'admin'
     );
 
--- Policies for metrics
+-- Policies for metrics (idempotent)
+DROP POLICY IF EXISTS "Allow service role full access to metrics" ON monitoring_metrics;
+DROP POLICY IF EXISTS "Allow admins to view metrics" ON monitoring_metrics;
+
 CREATE POLICY "Allow service role full access to metrics"
     ON monitoring_metrics
     USING (auth.role() = 'service_role');
