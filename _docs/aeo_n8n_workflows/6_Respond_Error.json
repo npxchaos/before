@@ -15,36 +15,7 @@
       "type": "n8n-nodes-base.function",
       "name": "Process Error",
       "parameters": {
-        "functionCode": `
-          const error = $input.first().json;
-          
-          // Standardize error format
-          const processedError = {
-            code: error.code || 'UNKNOWN_ERROR',
-            message: error.message || 'An unexpected error occurred',
-            details: error.details || {},
-            timestamp: new Date().toISOString(),
-            workflow: {
-              id: error.workflow_id,
-              name: error.workflow_name
-            },
-            submission: {
-              id: error.submission_id,
-              url: error.url
-            }
-          };
-          
-          // Add retry information if available
-          if (error.attempt) {
-            processedError.retry = {
-              attempt: error.attempt,
-              maxAttempts: error.maxAttempts || 3,
-              nextRetry: error.nextRetry
-            };
-          }
-          
-          return processedError;
-        `
+        "functionCode": "const error = $input.first().json;\nconst processedError = { code: error.code || 'UNKNOWN_ERROR', message: error.message || 'An unexpected error occurred', details: error.details || {}, timestamp: new Date().toISOString(), workflow: { id: error.workflow_id, name: error.workflow_name }, submission: { id: error.submission_id, url: error.url } };\nif (error.attempt) { processedError.retry = { attempt: error.attempt, maxAttempts: error.maxAttempts || 3, nextRetry: error.nextRetry }; }\nreturn processedError;"
       }
     },
     {

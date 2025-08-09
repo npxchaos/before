@@ -35,37 +35,7 @@
       "type": "n8n-nodes-base.function",
       "name": "Generate Queries",
       "parameters": {
-        "functionCode": `
-          const url = new URL($input.first().json.url);
-          const queries = [];
-
-          // Domain-based queries
-          queries.push({
-            type: 'domain',
-            query: url.hostname.replace('www.', '')
-          });
-
-          // Path-based queries
-          const pathSegments = url.pathname.split('/')
-            .filter(Boolean)
-            .filter(s => s.length > 3); // Skip short segments
-
-          if (pathSegments.length > 0) {
-            queries.push({
-              type: 'path',
-              query: pathSegments.join(' ')
-            });
-          }
-
-          // Add plan-specific queries
-          const planQueries = {
-            'free': 1,
-            'pro': 3,
-            'enterprise': 5
-          };
-
-          return queries.slice(0, planQueries[$input.first().json.plan_tier || 'free']);
-        `
+        "functionCode": "const url = new URL($input.first().json.url);\nconst queries = [];\n\nqueries.push({ type: 'domain', query: url.hostname.replace('www.', '') });\n\nconst pathSegments = url.pathname.split('/').filter(Boolean).filter(s => s.length > 3);\nif (pathSegments.length > 0) {\n  queries.push({ type: 'path', query: pathSegments.join(' ') });\n}\n\nconst planQueries = { free: 1, pro: 3, enterprise: 5 };\nreturn queries.slice(0, planQueries[$input.first().json.plan_tier || 'free']);"
       }
     },
     {
@@ -115,35 +85,7 @@
       "type": "n8n-nodes-base.function",
       "name": "Calculate Visibility Score",
       "parameters": {
-        "functionCode": `
-          const snapshots = $input.all().map(i => i.json);
-          
-          // Calculate per-engine scores
-          const engineScores = snapshots.map(snap => {
-            const scores = Object.entries(snap.engines).map(([engine, results]) => {
-              // Find best position
-              const position = results.find(r => r.url.includes(snap.url))?.position || 100;
-              // Score based on position (1st = 100, 2nd = 95, 3rd = 90, etc.)
-              return Math.max(0, 100 - ((position - 1) * 5));
-            });
-            return Math.max(...scores);
-          });
-          
-          // Average all scores
-          const score = Math.round(
-            engineScores.reduce((sum, score) => sum + score, 0) / engineScores.length
-          );
-          
-          return {
-            result_aeo: {
-              snapshots: snapshots.map(s => ({
-                query: s.query,
-                engines: s.engines
-              })),
-              score
-            }
-          };
-        `
+        "functionCode": "const snapshots = $input.all().map(i => i.json);\n\nconst engineScores = snapshots.map(snap => {\n  const scores = Object.entries(snap.engines).map(([engine, results]) => {\n    const position = (results.find(r => r.url.includes(snap.url)) || {}).position || 100;\n    return Math.max(0, 100 - ((position - 1) * 5));\n  });\n  return Math.max(...scores);\n});\n\nconst score = Math.round(engineScores.reduce((sum, v) => sum + v, 0) / engineScores.length);\n\nreturn { result_aeo: { snapshots: snapshots.map(s => ({ query: s.query, engines: s.engines })), score } };"
       }
     },
     {

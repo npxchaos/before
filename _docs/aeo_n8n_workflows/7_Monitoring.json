@@ -29,44 +29,7 @@
       "type": "n8n-nodes-base.function",
       "name": "Process Alerts",
       "parameters": {
-        "functionCode": `
-          const alerts = $input.first().json;
-          
-          // Group alerts by severity
-          const grouped = alerts.reduce((acc, alert) => {
-            if (!acc[alert.severity]) {
-              acc[alert.severity] = [];
-            }
-            acc[alert.severity].push(alert);
-            return acc;
-          }, {});
-          
-          // Format message for each severity
-          const messages = Object.entries(grouped).map(([severity, alerts]) => {
-            const count = alerts.length;
-            const summary = alerts.map(a => {
-              const details = typeof a.details === 'string' ? JSON.parse(a.details) : a.details;
-              switch(a.type) {
-                case 'high_error_rate':
-                  return \`Error rate: \${(details.error_rate * 100).toFixed(1)}% (threshold: \${(details.threshold * 100).toFixed(1)}%)\`;
-                case 'stuck_submission':
-                  return \`Submission \${details.submission_id} stuck at \${details.progress}%\`;
-                case 'high_rate_limit_usage':
-                  return \`User \${details.user_id} at \${details.usage_percent}% of \${details.plan_tier} limit\`;
-                default:
-                  return a.message;
-              }
-            }).join('\\n');
-            
-            return {
-              severity,
-              count,
-              summary
-            };
-          });
-          
-          return { messages };
-        `
+        "functionCode": "const alerts = $input.first().json;\nconst grouped = alerts.reduce((acc, alert) => { acc[alert.severity] = acc[alert.severity] || []; acc[alert.severity].push(alert); return acc; }, {});\nconst messages = Object.entries(grouped).map(([severity, arr]) => { const count = arr.length; const summary = arr.map(a => { const details = typeof a.details === 'string' ? JSON.parse(a.details) : a.details; switch (a.type) { case 'high_error_rate': return `Error rate: ${ (details.error_rate * 100).toFixed(1) }% (threshold: ${ (details.threshold * 100).toFixed(1) }%)`; case 'stuck_submission': return `Submission ${ details.submission_id } stuck at ${ details.progress }%`; case 'high_rate_limit_usage': return `User ${ details.user_id } at ${ details.usage_percent }% of ${ details.plan_tier } limit`; default: return a.message; } }).join('\\n'); return { severity, count, summary }; });\nreturn { messages };"
       }
     },
     {
@@ -133,40 +96,7 @@
       "type": "n8n-nodes-base.function",
       "name": "Generate Report",
       "parameters": {
-        "functionCode": `
-          const metrics = $input.first().json;
-          
-          // Calculate averages by metric
-          const averages = metrics.reduce((acc, m) => {
-            const key = \`\${m.metric_name}:\${JSON.stringify(m.labels)}\`;
-            if (!acc[key]) {
-              acc[key] = {
-                sum: 0,
-                count: 0,
-                labels: m.labels
-              };
-            }
-            acc[key].sum += m.metric_value;
-            acc[key].count++;
-            return acc;
-          }, {});
-          
-          // Format report
-          const report = Object.entries(averages).map(([key, data]) => {
-            const avg = data.sum / data.count;
-            const workflow = data.labels?.workflow_name || 'all';
-            const status = data.labels?.status || 'all';
-            
-            return {
-              metric: key.split(':')[0],
-              workflow,
-              status,
-              value: avg.toFixed(2)
-            };
-          });
-          
-          return { report };
-        `
+        "functionCode": "const metrics = $input.first().json;\nconst averages = metrics.reduce((acc, m) => { const key = `${m.metric_name}:${JSON.stringify(m.labels)}`; if (!acc[key]) acc[key] = { sum: 0, count: 0, labels: m.labels }; acc[key].sum += m.metric_value; acc[key].count++; return acc; }, {});\nconst report = Object.entries(averages).map(([key, data]) => { const avg = data.sum / data.count; const workflow = (data.labels && data.labels.workflow_name) || 'all'; const status = (data.labels && data.labels.status) || 'all'; return { metric: key.split(':')[0], workflow, status, value: avg.toFixed(2) }; });\nreturn { report };"
       }
     },
     {

@@ -16,44 +16,7 @@
       "type": "n8n-nodes-base.function",
       "name": "Check Rate Limit",
       "parameters": {
-        "functionCode": `
-          const planLimits = {
-            free: { perHour: 10, concurrentJobs: 1 },
-            pro: { perHour: 100, concurrentJobs: 5 },
-            enterprise: { perHour: 1000, concurrentJobs: 20 }
-          };
-
-          // Get plan limits
-          const plan = $input.first().json.plan_tier || 'free';
-          const limits = planLimits[plan];
-
-          // Check active jobs (in last 5 minutes to catch hanging jobs)
-          const activeJobs = $getWorkflowStaticData('global').activeJobs || {};
-          const now = Date.now();
-          const activeCount = Object.entries(activeJobs)
-            .filter(([_, timestamp]) => now - timestamp < 300000)
-            .length;
-
-          if (activeCount >= limits.concurrentJobs) {
-            throw new Error('Maximum concurrent jobs limit reached. Please try again later.');
-          }
-
-          // Track this job
-          activeJobs[$input.first().json.submission_id] = now;
-          $setWorkflowStaticData('global', { activeJobs });
-
-          // Add rate limit headers to response
-          return {
-            ...($input.first().json),
-            __response: {
-              headers: {
-                'X-RateLimit-Limit': limits.perHour.toString(),
-                'X-RateLimit-Remaining': (limits.perHour - activeCount).toString(),
-                'X-RateLimit-Reset': new Date(now + 3600000).toISOString()
-              }
-            }
-          };
-        `
+        "functionCode": "const planLimits = {\n  free: { perHour: 10, concurrentJobs: 1 },\n  pro: { perHour: 100, concurrentJobs: 5 },\n  enterprise: { perHour: 1000, concurrentJobs: 20 }\n};\n\nconst plan = $input.first().json.plan_tier || 'free';\nconst limits = planLimits[plan];\n\nconst activeJobs = $getWorkflowStaticData('global').activeJobs || {};\nconst now = Date.now();\nconst activeCount = Object.entries(activeJobs)\n  .filter(([_, timestamp]) => now - timestamp < 300000)\n  .length;\n\nif (activeCount >= limits.concurrentJobs) {\n  throw new Error('Maximum concurrent jobs limit reached. Please try again later.');\n}\n\nactiveJobs[$input.first().json.submission_id] = now;\n$setWorkflowStaticData('global', { activeJobs });\n\nreturn {\n  ...($input.first().json),\n  __response: {\n    headers: {\n      'X-RateLimit-Limit': limits.perHour.toString(),\n      'X-RateLimit-Remaining': (limits.perHour - activeCount).toString(),\n      'X-RateLimit-Reset': new Date(now + 3600000).toISOString()\n    }\n  }\n};"
       }
     },
     {
@@ -138,13 +101,7 @@
       "type": "n8n-nodes-base.function",
       "name": "Cleanup Rate Limit",
       "parameters": {
-        "functionCode": `
-          // Remove this job from active jobs
-          const activeJobs = $getWorkflowStaticData('global').activeJobs || {};
-          delete activeJobs[$input.first().json.submission_id];
-          $setWorkflowStaticData('global', { activeJobs });
-          return $input.all()[0];
-        `
+        "functionCode": "const activeJobs = $getWorkflowStaticData('global').activeJobs || {};\ndelete activeJobs[$input.first().json.submission_id];\n$setWorkflowStaticData('global', { activeJobs });\nreturn $input.all()[0];"
       }
     },
     {
