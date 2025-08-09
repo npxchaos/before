@@ -1,0 +1,146 @@
+{
+  "name": "7_Monitoring",
+  "nodes": [
+    {
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "name": "Every 5 Minutes",
+      "parameters": {
+        "interval": [
+          {
+            "field": "minutes",
+            "value": 5
+          }
+        ]
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [300, -100],
+      "name": "Fetch Active Alerts",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/monitoring_alerts?status=eq.active&select=*",
+        "method": "GET",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [600, -100],
+      "name": "Process Alerts",
+      "parameters": {
+        "functionCode": "const alerts = $input.first().json;\nconst grouped = alerts.reduce((acc, alert) => { acc[alert.severity] = acc[alert.severity] || []; acc[alert.severity].push(alert); return acc; }, {});\nconst messages = Object.entries(grouped).map(([severity, arr]) => { const count = arr.length; const summary = arr.map(a => { const details = typeof a.details === 'string' ? JSON.parse(a.details) : a.details; switch (a.type) { case 'high_error_rate': return `Error rate: ${ (details.error_rate * 100).toFixed(1) }% (threshold: ${ (details.threshold * 100).toFixed(1) }%)`; case 'stuck_submission': return `Submission ${ details.submission_id } stuck at ${ details.progress }%`; case 'high_rate_limit_usage': return `User ${ details.user_id } at ${ details.usage_percent }% of ${ details.plan_tier } limit`; default: return a.message; } }).join('\\n'); return { severity, count, summary }; });\nreturn { messages };"
+      }
+    },
+    {
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, -200],
+      "name": "Has Critical Alerts",
+      "parameters": {
+        "conditions": [
+          {
+            "value1": "={{$json.messages.find(m => m.severity === 'critical')?.count || 0}}",
+            "value2": 0,
+            "operation": ">"
+          }
+        ]
+      }
+    },
+    {
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1200, -200],
+      "name": "Send Critical Alert",
+      "parameters": {
+        "channel": "monitoring-alerts",
+        "text": "=🚨 *CRITICAL ALERTS*\\n\\n{{$json.messages.find(m => m.severity === 'critical').summary}}",
+        "otherOptions": {
+          "color": "#ff0000"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 0],
+      "name": "Has Warning Alerts",
+      "parameters": {
+        "conditions": [
+          {
+            "value1": "={{$json.messages.find(m => m.severity === 'warning')?.count || 0}}",
+            "value2": 0,
+            "operation": ">"
+          }
+        ]
+      }
+    },
+    {
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [1200, 0],
+      "name": "Send Warning Alert",
+      "parameters": {
+        "channel": "monitoring-alerts",
+        "text": "=⚠️ *WARNING ALERTS*\\n\\n{{$json.messages.find(m => m.severity === 'warning').summary}}",
+        "otherOptions": {
+          "color": "#ffa500"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [300, 100],
+      "name": "Fetch Recent Metrics",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/monitoring_metrics?select=*&timestamp=gte.{{new Date(Date.now() - 3600000).toISOString()}}",
+        "method": "GET",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [600, 100],
+      "name": "Generate Report",
+      "parameters": {
+        "functionCode": "const metrics = $input.first().json;\nconst averages = metrics.reduce((acc, m) => { const key = `${m.metric_name}:${JSON.stringify(m.labels)}`; if (!acc[key]) acc[key] = { sum: 0, count: 0, labels: m.labels }; acc[key].sum += m.metric_value; acc[key].count++; return acc; }, {});\nconst report = Object.entries(averages).map(([key, data]) => { const avg = data.sum / data.count; const workflow = (data.labels && data.labels.workflow_name) || 'all'; const status = (data.labels && data.labels.status) || 'all'; return { metric: key.split(':')[0], workflow, status, value: avg.toFixed(2) }; });\nreturn { report };"
+      }
+    },
+    {
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [900, 100],
+      "name": "Send Hourly Report",
+      "parameters": {
+        "channel": "monitoring-metrics",
+        "text": "=📊 *Hourly Metrics Report*\\n\\n{{$json.report.map(r => r.metric + ' (' + r.workflow + '/' + r.status + '): ' + r.value).join('\\n')}}",
+        "otherOptions": {
+          "color": "#0066cc"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": { "main": [[{ "node": "Fetch Active Alerts", "type": "main", "index": 0 }, { "node": "Fetch Recent Metrics", "type": "main", "index": 0 }]] },
+    "Fetch Active Alerts": { "main": [[{ "node": "Process Alerts", "type": "main", "index": 0 }]] },
+    "Process Alerts": { "main": [[{ "node": "Has Critical Alerts", "type": "main", "index": 0 }, { "node": "Has Warning Alerts", "type": "main", "index": 0 }]] },
+    "Has Critical Alerts": { "main": [[{ "node": "Send Critical Alert", "type": "main", "index": 0 }]] },
+    "Has Warning Alerts": { "main": [[{ "node": "Send Warning Alert", "type": "main", "index": 0 }]] },
+    "Fetch Recent Metrics": { "main": [[{ "node": "Generate Report", "type": "main", "index": 0 }]] },
+    "Generate Report": { "main": [[{ "node": "Send Hourly Report", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

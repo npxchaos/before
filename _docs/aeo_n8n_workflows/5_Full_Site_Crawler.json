@@ -1,0 +1,150 @@
+{
+  "name": "5_Full_Site_Crawler",
+  "nodes": [
+    {
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "name": "Receive Crawl Request",
+      "parameters": {
+        "path": "full-site-crawler",
+        "options": {
+          "headerAuth": true
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [300, 0],
+      "name": "Build URL List",
+      "parameters": {
+        "functionCode": "const { url, submission_id, plan_tier } = $input.first().json;\\n\\n// NOTE: Este é um gerador simples (placeholder). Em produção, substitua por um crawler real\\n// (ex.: Headless + sitemap + BFS limitado) e respeite robots.txt.\\nconst planLimits = { free: 5, pro: 50, enterprise: 200 };\\nconst limit = planLimits[plan_tier || 'free'] || 5;\\n\\nconst u = new URL(url);\\nconst base = `${u.protocol}//${u.host}`;\\n\\n// Sementes iniciais para demo (substituir por crawling real)\\nconst seeds = [url, `${base}/about`, `${base}/contact`, `${base}/pricing`, `${base}/blog`];\\n\\nconst unique = Array.from(new Set(seeds)).slice(0, limit);\\n\\nreturn unique.map((page) => ({ page_url: page, submission_id, root_url: url, plan_tier }));"
+      }
+    },
+    {
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [600, 0],
+      "name": "Split Pages",
+      "parameters": {
+        "batchSize": 1
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [900, -100],
+      "name": "Trigger Page Audit",
+      "parameters": {
+        "url": "={{$env.N8N_URL}}/webhook/page-audit",
+        "method": "POST",
+        "body": {
+          "submission_id": "={{$json.submission_id}}",
+          "url": "={{$json.page_url}}",
+          "plan_tier": "={{$json.plan_tier}}"
+        },
+        "options": {
+          "retry": {
+            "count": 3,
+            "maxTimeout": 10000
+          }
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [900, 100],
+      "name": "Update Progress",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/submissions?id=eq.{{$json.submission_id}}",
+        "method": "PATCH",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json",
+          "Prefer": "return=minimal"
+        },
+        "body": {
+          "status": "processing",
+          "progress": "={{Math.min(95, (($runIndex + 1) / ($items().length || 1)) * 90)}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 0],
+      "name": "More Pages?",
+      "parameters": {
+        "conditions": [
+          {
+            "value1": "={{$node[\"Split Pages\"].context[\"noItemsLeft\"]}}",
+            "value2": false,
+            "operation": "="
+          }
+        ]
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1500, -100],
+      "name": "Next Batch",
+      "parameters": {
+        "url": "={{$env.N8N_URL}}/webhook/full-site-crawler",
+        "method": "POST",
+        "body": {
+          "submission_id": "={{$json.submission_id}}",
+          "url": "={{$json.root_url}}",
+          "plan_tier": "={{$json.plan_tier}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1500, 100],
+      "name": "Mark Crawl Finished",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/submissions?id=eq.{{$json.submission_id}}",
+        "method": "PATCH",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json",
+          "Prefer": "return=minimal"
+        },
+        "body": {
+          "status": "processing",
+          "progress": 95
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Crawl Request": {
+      "main": [[{ "node": "Build URL List", "type": "main", "index": 0 }]]
+    },
+    "Build URL List": {
+      "main": [[{ "node": "Split Pages", "type": "main", "index": 0 }]]
+    },
+    "Split Pages": {
+      "main": [[{ "node": "Trigger Page Audit", "type": "main", "index": 0 }, { "node": "Update Progress", "type": "main", "index": 0 }]]
+    },
+    "Trigger Page Audit": {
+      "main": [[{ "node": "More Pages?", "type": "main", "index": 0 }]]
+    },
+    "Update Progress": {
+      "main": [[{ "node": "More Pages?", "type": "main", "index": 0 }]]
+    },
+    "More Pages?": {
+      "main": [[{ "node": "Next Batch", "type": "main", "index": 0 }]],
+      "false": [[{ "node": "Mark Crawl Finished", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

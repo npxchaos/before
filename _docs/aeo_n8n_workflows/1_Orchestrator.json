@@ -1,0 +1,189 @@
+{
+  "name": "1_Orchestrator",
+  "nodes": [
+    {
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "name": "Receive Submission",
+      "parameters": {
+        "path": "orchestrator",
+        "options": {
+          "headerAuth": true,
+          "responseMode": "responseNode"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [300, 0],
+      "name": "Check Rate Limit",
+      "parameters": {
+        "functionCode": "const planLimits = {\n  free: { perHour: 10, concurrentJobs: 1 },\n  pro: { perHour: 100, concurrentJobs: 5 },\n  enterprise: { perHour: 1000, concurrentJobs: 20 }\n};\n\nconst plan = $input.first().json.plan_tier || 'free';\nconst limits = planLimits[plan];\n\nconst activeJobs = $getWorkflowStaticData('global').activeJobs || {};\nconst now = Date.now();\nconst activeCount = Object.entries(activeJobs)\n  .filter(([_, timestamp]) => now - timestamp < 300000)\n  .length;\n\nif (activeCount >= limits.concurrentJobs) {\n  throw new Error('Maximum concurrent jobs limit reached. Please try again later.');\n}\n\nactiveJobs[$input.first().json.submission_id] = now;\n$setWorkflowStaticData('global', { activeJobs });\n\nreturn {\n  ...($input.first().json),\n  __response: {\n    headers: {\n      'X-RateLimit-Limit': limits.perHour.toString(),\n      'X-RateLimit-Remaining': (limits.perHour - activeCount).toString(),\n      'X-RateLimit-Reset': new Date(now + 3600000).toISOString()\n    }\n  }\n};"
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [600, 0],
+      "name": "Start Processing",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/submissions?id=eq.{{$json.submission_id}}",
+        "method": "PATCH",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json",
+          "Prefer": "return=minimal"
+        },
+        "body": {
+          "status": "processing",
+          "started_at": "={{$now}}",
+          "progress": 10
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [900, 0],
+      "name": "Log Webhook Run Start",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs",
+        "method": "POST",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json",
+          "Prefer": "return=minimal"
+        },
+        "body": {
+          "submission_id": "={{$json.submission_id}}",
+          "workflow_id": "={{$workflow.id}}",
+          "workflow_name": "Orchestrator",
+          "status": "started",
+          "request": "={{$json}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1200, -150],
+      "name": "Trigger Page Audit",
+      "parameters": {
+        "url": "={{$env.N8N_URL}}/webhook/page-audit",
+        "method": "POST",
+        "body": {
+          "submission_id": "={{$json.submission_id}}",
+          "url": "={{$json.url}}",
+          "plan_tier": "={{$json.plan_tier}}"
+        },
+        "options": {
+          "retry": {
+            "count": 3,
+            "maxTimeout": 10000
+          }
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1200, 150],
+      "name": "Trigger AI Visibility",
+      "parameters": {
+        "url": "={{$env.N8N_URL}}/webhook/ai-visibility",
+        "method": "POST",
+        "body": {
+          "submission_id": "={{$json.submission_id}}",
+          "url": "={{$json.url}}",
+          "plan_tier": "={{$json.plan_tier}}"
+        },
+        "options": {
+          "retry": {
+            "count": 3,
+            "maxTimeout": 10000
+          }
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [1500, 0],
+      "name": "Cleanup Rate Limit",
+      "parameters": {
+        "functionCode": "const activeJobs = $getWorkflowStaticData('global').activeJobs || {};\ndelete activeJobs[$input.first().json.submission_id];\n$setWorkflowStaticData('global', { activeJobs });\nreturn $input.all()[0];"
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1800, 0],
+      "name": "Log Webhook Run Complete",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs?id=eq.{{$json.webhook_run_id}}",
+        "method": "PATCH",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json",
+          "Prefer": "return=minimal"
+        },
+        "body": {
+          "status": "completed",
+          "response": "={{$json}}",
+          "duration_ms": "={{Date.now() - new Date($json.started_at).getTime()}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 2,
+      "position": [2100, 0],
+      "name": "HTTP Response",
+      "parameters": {
+        "options": {
+          "responseHeaders": "={{$json.__response.headers}}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Submission": {
+      "main": [[{ "node": "Check Rate Limit", "type": "main", "index": 0 }]]
+    },
+    "Check Rate Limit": {
+      "main": [[{ "node": "Start Processing", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "HTTP Response", "type": "main", "index": 0 }]]
+    },
+    "Start Processing": {
+      "main": [[{ "node": "Log Webhook Run Start", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Cleanup Rate Limit", "type": "main", "index": 0 }]]
+    },
+    "Log Webhook Run Start": {
+      "main": [[{ "node": "Trigger Page Audit", "type": "main", "index": 0 }, { "node": "Trigger AI Visibility", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Cleanup Rate Limit", "type": "main", "index": 0 }]]
+    },
+    "Trigger Page Audit": {
+      "main": [[{ "node": "Cleanup Rate Limit", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Cleanup Rate Limit", "type": "main", "index": 0 }]]
+    },
+    "Trigger AI Visibility": {
+      "main": [[{ "node": "Cleanup Rate Limit", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Cleanup Rate Limit", "type": "main", "index": 0 }]]
+    },
+    "Cleanup Rate Limit": {
+      "main": [[{ "node": "Log Webhook Run Complete", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "HTTP Response", "type": "main", "index": 0 }]]
+    },
+    "Log Webhook Run Complete": {
+      "main": [[{ "node": "HTTP Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

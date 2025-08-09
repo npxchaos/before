@@ -1,0 +1,176 @@
+{
+  "name": "3_AI_Visibility_Tracker",
+  "nodes": [
+    {
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "name": "Receive AI Visibility",
+      "parameters": {
+        "path": "ai-visibility",
+        "options": {
+          "headerAuth": true
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [300, 0],
+      "name": "Log Webhook Run Start",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs",
+        "method": "POST",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "submission_id": "={{$json.submission_id}}",
+          "workflow_id": "={{$workflow.id}}",
+          "workflow_name": "AI Visibility",
+          "status": "started",
+          "request": "={{$json}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [600, 0],
+      "name": "Generate Queries",
+      "parameters": {
+        "functionCode": "const url = new URL($input.first().json.url);\nconst queries = [];\n\nqueries.push({ type: 'domain', query: url.hostname.replace('www.', '') });\n\nconst pathSegments = url.pathname.split('/').filter(Boolean).filter(s => s.length > 3);\nif (pathSegments.length > 0) {\n  queries.push({ type: 'path', query: pathSegments.join(' ') });\n}\n\nconst planQueries = { free: 1, pro: 3, enterprise: 5 };\nreturn queries.slice(0, planQueries[$input.first().json.plan_tier || 'free']);"
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [900, 0],
+      "name": "Check Search Visibility",
+      "parameters": {
+        "url": "=https://api.search-results.com/v1/search",
+        "method": "POST",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000,
+          "retry": {
+            "count": 3,
+            "maxTimeout": 10000
+          }
+        },
+        "body": {
+          "query": "={{$json.query}}",
+          "engines": ["google", "bing", "duckduckgo"],
+          "country": "us",
+          "language": "en",
+          "device": "desktop"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1200, 0],
+      "name": "Save Snapshot",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/visibility_snapshots",
+        "method": "POST",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "submission_id": "={{$json.submission_id}}",
+          "url": "={{$json.url}}",
+          "query": "={{$json.query}}",
+          "engines": "={{$json.results}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [1500, 0],
+      "name": "Calculate Visibility Score",
+      "parameters": {
+        "functionCode": "const snapshots = $input.all().map(i => i.json);\n\nconst engineScores = snapshots.map(snap => {\n  const scores = Object.entries(snap.engines).map(([engine, results]) => {\n    const position = (results.find(r => r.url.includes(snap.url)) || {}).position || 100;\n    return Math.max(0, 100 - ((position - 1) * 5));\n  });\n  return Math.max(...scores);\n});\n\nconst score = Math.round(engineScores.reduce((sum, v) => sum + v, 0) / engineScores.length);\n\nreturn { result_aeo: { snapshots: snapshots.map(s => ({ query: s.query, engines: s.engines })), score } };"
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1800, 0],
+      "name": "Update Results",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/submissions?id=eq.{{$json.submission_id}}",
+        "method": "PATCH",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "result_aeo": "={{$json.result_aeo}}",
+          "progress": 75
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [2100, 0],
+      "name": "Log Webhook Run Complete",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs?id=eq.{{$json.webhook_run_id}}",
+        "method": "PATCH",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "status": "completed",
+          "response": "={{$json}}",
+          "duration_ms": "={{Date.now() - new Date($json.started_at).getTime()}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [900, 200],
+      "name": "Log Error",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs?id=eq.{{$json.webhook_run_id}}",
+        "method": "PATCH",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "status": "failed",
+          "error_code": "={{$error.type}}",
+          "error_message": "={{$error.message}}",
+          "duration_ms": "={{Date.now() - new Date($json.started_at).getTime()}}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receive AI Visibility": { "main": [[{ "node": "Log Webhook Run Start", "type": "main", "index": 0 }]] },
+    "Log Webhook Run Start": { "main": [[{ "node": "Generate Queries", "type": "main", "index": 0 }]], "error": [[{ "node": "Log Error", "type": "main", "index": 0 }]] },
+    "Generate Queries": { "main": [[{ "node": "Check Search Visibility", "type": "main", "index": 0 }]], "error": [[{ "node": "Log Error", "type": "main", "index": 0 }]] },
+    "Check Search Visibility": { "main": [[{ "node": "Save Snapshot", "type": "main", "index": 0 }]], "error": [[{ "node": "Log Error", "type": "main", "index": 0 }]] },
+    "Save Snapshot": { "main": [[{ "node": "Calculate Visibility Score", "type": "main", "index": 0 }]], "error": [[{ "node": "Log Error", "type": "main", "index": 0 }]] },
+    "Calculate Visibility Score": { "main": [[{ "node": "Update Results", "type": "main", "index": 0 }]], "error": [[{ "node": "Log Error", "type": "main", "index": 0 }]] },
+    "Update Results": { "main": [[{ "node": "Log Webhook Run Complete", "type": "main", "index": 0 }]], "error": [[{ "node": "Log Error", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

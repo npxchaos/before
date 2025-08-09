@@ -1,0 +1,155 @@
+{
+  "name": "2_Page_Audit",
+  "nodes": [
+    {
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "name": "Receive Page Audit",
+      "parameters": {
+        "path": "page-audit",
+        "options": {
+          "headerAuth": true
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [300, 0],
+      "name": "Log Webhook Run Start",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs",
+        "method": "POST",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "submission_id": "={{$json.submission_id}}",
+          "workflow_id": "={{$workflow.id}}",
+          "workflow_name": "Page Audit",
+          "status": "started",
+          "request": "={{$json}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [600, 0],
+      "name": "Run Lighthouse",
+      "parameters": {
+        "url": "=https://www.googleapis.com/pagespeedonline/v5/runPagespeed",
+        "method": "GET",
+        "qs": {
+          "url": "={{$json.url}}",
+          "strategy": "mobile",
+          "category": ["performance", "accessibility", "best-practices", "seo"],
+          "key": "={{$env.GOOGLE_API_KEY}}"
+        },
+        "options": {
+          "timeout": 30000,
+          "retry": {
+            "count": 3,
+            "maxTimeout": 10000
+          }
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [900, 0],
+      "name": "Process Lighthouse Results",
+      "parameters": {
+        "functionCode": "const lighthouse = $input.first().json;\n\nconst metrics = {\n  performance: lighthouse.lighthouseResult.categories.performance.score,\n  accessibility: lighthouse.lighthouseResult.categories.accessibility.score,\n  seo: lighthouse.lighthouseResult.categories.seo.score,\n  bestPractices: lighthouse.lighthouseResult.categories['best-practices'].score,\n  metrics: {\n    fcp: lighthouse.lighthouseResult.audits['first-contentful-paint'].numericValue,\n    lcp: lighthouse.lighthouseResult.audits['largest-contentful-paint'].numericValue,\n    cls: lighthouse.lighthouseResult.audits['cumulative-layout-shift'].numericValue,\n    tbt: lighthouse.lighthouseResult.audits['total-blocking-time'].numericValue,\n    tti: lighthouse.lighthouseResult.audits['interactive'].numericValue\n  },\n  opportunities: Object.entries(lighthouse.lighthouseResult.audits)\n    .filter(([_, audit]) => audit.details?.type === 'opportunity')\n    .map(([id, audit]) => ({ id, title: audit.title, description: audit.description, score: audit.score, numericValue: audit.numericValue, displayValue: audit.displayValue }))\n};\n\nconst score = Math.round((metrics.performance * 0.4 + metrics.accessibility * 0.2 + metrics.seo * 0.2 + metrics.bestPractices * 0.2) * 100);\n\nreturn {\n  result_lighthouse: metrics,\n  score,\n  meta: {\n    timing: { started_at: lighthouse.analysisUTCTimestamp, duration_ms: lighthouse.lighthouseResult.timing.total },\n    userAgent: lighthouse.lighthouseResult.environment.hostUserAgent,\n    fetchTime: lighthouse.lighthouseResult.fetchTime,\n    finalUrl: lighthouse.lighthouseResult.finalUrl\n  }\n};"
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1200, 0],
+      "name": "Update Lighthouse Results",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/submissions?id=eq.{{$json.submission_id}}",
+        "method": "PATCH",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "result_lighthouse": "={{$json.result_lighthouse}}",
+          "progress": 50
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1500, 0],
+      "name": "Log Webhook Run Complete",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs?id=eq.{{$json.webhook_run_id}}",
+        "method": "PATCH",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "status": "completed",
+          "response": "={{$json}}",
+          "duration_ms": "={{Date.now() - new Date($json.started_at).getTime()}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [900, 200],
+      "name": "Log Error",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs?id=eq.{{$json.webhook_run_id}}",
+        "method": "PATCH",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "status": "failed",
+          "error_code": "={{$error.type}}",
+          "error_message": "={{$error.message}}",
+          "duration_ms": "={{Date.now() - new Date($json.started_at).getTime()}}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Page Audit": {
+      "main": [[{ "node": "Log Webhook Run Start", "type": "main", "index": 0 }]]
+    },
+    "Log Webhook Run Start": {
+      "main": [[{ "node": "Run Lighthouse", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Log Error", "type": "main", "index": 0 }]]
+    },
+    "Run Lighthouse": {
+      "main": [[{ "node": "Process Lighthouse Results", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Log Error", "type": "main", "index": 0 }]]
+    },
+    "Process Lighthouse Results": {
+      "main": [[{ "node": "Update Lighthouse Results", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Log Error", "type": "main", "index": 0 }]]
+    },
+    "Update Lighthouse Results": {
+      "main": [[{ "node": "Log Webhook Run Complete", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Log Error", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

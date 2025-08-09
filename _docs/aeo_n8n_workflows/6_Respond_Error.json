@@ -1,0 +1,120 @@
+{
+  "name": "6_Respond_Error",
+  "nodes": [
+    {
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "name": "Receive Error",
+      "parameters": {
+        "path": "error-handler",
+        "options": {
+          "headerAuth": true
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [300, 0],
+      "name": "Process Error",
+      "parameters": {
+        "functionCode": "const error = $input.first().json;\nconst processedError = { code: error.code || 'UNKNOWN_ERROR', message: error.message || 'An unexpected error occurred', details: error.details || {}, timestamp: new Date().toISOString(), workflow: { id: error.workflow_id, name: error.workflow_name }, submission: { id: error.submission_id, url: error.url } };\nif (error.attempt) { processedError.retry = { attempt: error.attempt, maxAttempts: error.maxAttempts || 3, nextRetry: error.nextRetry }; }\nreturn processedError;"
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [600, -100],
+      "name": "Update Submission Status",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/submissions?id=eq.{{$json.submission.id}}",
+        "method": "PATCH",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "status": "failed",
+          "error_code": "={{$json.code}}",
+          "error_message": "={{$json.message}}",
+          "processed_at": "={{$json.timestamp}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [600, 100],
+      "name": "Log Error Run",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs",
+        "method": "POST",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "submission_id": "={{$json.submission.id}}",
+          "workflow_id": "={{$json.workflow.id}}",
+          "workflow_name": "={{$json.workflow.name}}",
+          "status": "failed",
+          "error_code": "={{$json.code}}",
+          "error_message": "={{$json.message}}",
+          "request": "={{$json}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 0],
+      "name": "Check Retry",
+      "parameters": {
+        "conditions": [
+          {
+            "value1": "={{$json.retry?.attempt}}",
+            "value2": "={{$json.retry?.maxAttempts}}",
+            "operation": "<"
+          }
+        ]
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1200, 0],
+      "name": "Schedule Retry",
+      "parameters": {
+        "url": "={{$env.N8N_URL}}/webhook/{{$json.workflow.name.toLowerCase()}}",
+        "method": "POST",
+        "headers": {
+          "X-Retry-Attempt": "={{$json.retry.attempt + 1}}"
+        },
+        "body": {
+          "submission_id": "={{$json.submission.id}}",
+          "url": "={{$json.submission.url}}",
+          "attempt": "={{$json.retry.attempt + 1}}",
+          "maxAttempts": "={{$json.retry.maxAttempts}}"
+        },
+        "options": {
+          "redirect": {
+            "follow": true,
+            "maxRedirects": 5
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Error": { "main": [[{ "node": "Process Error", "type": "main", "index": 0 }]] },
+    "Process Error": { "main": [[{ "node": "Update Submission Status", "type": "main", "index": 0 }, { "node": "Log Error Run", "type": "main", "index": 0 }]] },
+    "Update Submission Status": { "main": [[{ "node": "Check Retry", "type": "main", "index": 0 }]] },
+    "Check Retry": { "main": [[{ "node": "Schedule Retry", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

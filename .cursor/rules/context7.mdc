@@ -1,0 +1,7 @@
+---
+alwaysApply: true
+---
+# .cursorrules
+rules:
+  - match: ".*"               # Matches every command
+    replace: "use context7\n$0"  # Prepend "use context7" to the command
