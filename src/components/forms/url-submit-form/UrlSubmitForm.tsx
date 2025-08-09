@@ -8,7 +8,11 @@ export interface UrlSubmitFormProps {
   variant?: "inline" | "stacked"
 }
 
-interface SubmitUrlResponse { submissionId: string }
+interface SubmitUrlResponse {
+  submissionId?: string
+  id?: string
+  data?: { id?: string }
+}
 
 function isValidUrl(value: string): boolean {
   try { new URL(value); return true } catch { return false }
@@ -46,8 +50,8 @@ export function UrlSubmitForm({ onSubmitted, className, variant = "stacked" }: U
         body: JSON.stringify({ url }),
       })
       if (!res.ok) throw new Error("Failed to submit")
-      const data: any = await res.json()
-      const submissionId: string | undefined = data?.submissionId || data?.id || data?.data?.id
+      const data: SubmitUrlResponse = await res.json()
+      const submissionId: string | undefined = data.submissionId || data.id || data.data?.id
       if (submissionId) onSubmitted?.(submissionId)
       formEl.reset()
     } catch (err: unknown) {
