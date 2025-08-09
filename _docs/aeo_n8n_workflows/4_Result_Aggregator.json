@@ -3,6 +3,8 @@
   "nodes": [
     {
       "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
       "name": "Receive Results",
       "parameters": {
         "path": "aggregate-results",
@@ -13,6 +15,8 @@
     },
     {
       "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [300, 0],
       "name": "Log Webhook Run Start",
       "parameters": {
         "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs",
@@ -33,6 +37,8 @@
     },
     {
       "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [600, 0],
       "name": "Fetch Submission",
       "parameters": {
         "url": "={{$env.SUPABASE_URL}}/rest/v1/submissions?id=eq.{{$json.submission_id}}&select=*",
@@ -45,6 +51,8 @@
     },
     {
       "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [900, 0],
       "name": "Calculate Final Score",
       "parameters": {
         "functionCode": "const submission = $input.first().json[0];\n\nconst weights = { lighthouse: { performance: 0.3, accessibility: 0.2, seo: 0.2, bestPractices: 0.1 }, visibility: 0.2 };\n\nconst lighthouse = submission.result_lighthouse;\nconst lighthouseScore = (lighthouse.performance * weights.lighthouse.performance + lighthouse.accessibility * weights.lighthouse.accessibility + lighthouse.seo * weights.lighthouse.seo + lighthouse.bestPractices * weights.lighthouse.bestPractices) * 100;\n\nconst visibilityScore = (submission.result_aeo && submission.result_aeo.score) || 0;\n\nconst finalScore = Math.round(lighthouseScore * (1 - weights.visibility) + visibilityScore * weights.visibility);\n\nreturn { submission_id: submission.id, visibility_score: finalScore, meta: { components: { lighthouse: lighthouseScore, visibility: visibilityScore }, weights } };"
@@ -52,6 +60,8 @@
     },
     {
       "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1200, 0],
       "name": "Update Final Score",
       "parameters": {
         "url": "={{$env.SUPABASE_URL}}/rest/v1/submissions?id=eq.{{$json.submission_id}}",
@@ -72,6 +82,8 @@
     },
     {
       "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [1500, 0],
       "name": "Log Webhook Run Complete",
       "parameters": {
         "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs?id=eq.{{$json.webhook_run_id}}",
@@ -90,6 +102,8 @@
     },
     {
       "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [900, 200],
       "name": "Log Error",
       "parameters": {
         "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs?id=eq.{{$json.webhook_run_id}}",
@@ -109,24 +123,13 @@
     }
   ],
   "connections": {
-    "Receive Results": {
-      "main": [["Log Webhook Run Start"]]
-    },
-    "Log Webhook Run Start": {
-      "main": [["Fetch Submission"]],
-      "error": [["Log Error"]]
-    },
-    "Fetch Submission": {
-      "main": [["Calculate Final Score"]],
-      "error": [["Log Error"]]
-    },
-    "Calculate Final Score": {
-      "main": [["Update Final Score"]],
-      "error": [["Log Error"]]
-    },
-    "Update Final Score": {
-      "main": [["Log Webhook Run Complete"]],
-      "error": [["Log Error"]]
-    }
-  }
+    "Receive Results": { "main": [[{ "node": "Log Webhook Run Start", "type": "main", "index": 0 }]] },
+    "Log Webhook Run Start": { "main": [[{ "node": "Fetch Submission", "type": "main", "index": 0 }]], "error": [[{ "node": "Log Error", "type": "main", "index": 0 }]] },
+    "Fetch Submission": { "main": [[{ "node": "Calculate Final Score", "type": "main", "index": 0 }]], "error": [[{ "node": "Log Error", "type": "main", "index": 0 }]] },
+    "Calculate Final Score": { "main": [[{ "node": "Update Final Score", "type": "main", "index": 0 }]], "error": [[{ "node": "Log Error", "type": "main", "index": 0 }]] },
+    "Update Final Score": { "main": [[{ "node": "Log Webhook Run Complete", "type": "main", "index": 0 }]], "error": [[{ "node": "Log Error", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
 }
