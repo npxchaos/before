@@ -82,11 +82,21 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Add rate limit check to submissions table
-ALTER TABLE submissions
-    ADD CONSTRAINT check_submission_rate_limit
-    CHECK (
-        check_rate_limit(user_id, plan_tier)
-    );
+-- Add rate limit constraint only if missing
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    WHERE t.relname = 'submissions'
+      AND c.conname = 'check_submission_rate_limit'
+  ) THEN
+    ALTER TABLE submissions
+      ADD CONSTRAINT check_submission_rate_limit
+      CHECK (check_rate_limit(user_id, plan_tier));
+  END IF;
+END $$;
 
 -- Add comment
 COMMENT ON TABLE webhook_runs IS 'Monitors n8n webhook executions and tracks performance/errors';
