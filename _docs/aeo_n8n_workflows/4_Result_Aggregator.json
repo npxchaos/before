@@ -1,0 +1,174 @@
+{
+  "name": "4_Result_Aggregator",
+  "nodes": [
+    {
+      "type": "n8n-nodes-base.webhook",
+      "name": "Receive Results",
+      "parameters": {
+        "path": "aggregate-results",
+        "options": {
+          "headerAuth": true
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Log Webhook Run Start",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs",
+        "method": "POST",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "submission_id": "={{$json.submission_id}}",
+          "workflow_id": "={{$workflow.id}}",
+          "workflow_name": "Result Aggregator",
+          "status": "started",
+          "request": "={{$json}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Fetch Submission",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/submissions?id=eq.{{$json.submission_id}}&select=*",
+        "method": "GET",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.function",
+      "name": "Calculate Final Score",
+      "parameters": {
+        "functionCode": `
+          const submission = $input.first().json[0];
+          
+          // Weights for different components
+          const weights = {
+            lighthouse: {
+              performance: 0.3,
+              accessibility: 0.2,
+              seo: 0.2,
+              bestPractices: 0.1
+            },
+            visibility: 0.2
+          };
+          
+          // Calculate Lighthouse score
+          const lighthouse = submission.result_lighthouse;
+          const lighthouseScore = 
+            (lighthouse.performance * weights.lighthouse.performance +
+             lighthouse.accessibility * weights.lighthouse.accessibility +
+             lighthouse.seo * weights.lighthouse.seo +
+             lighthouse.bestPractices * weights.lighthouse.bestPractices) * 100;
+          
+          // Get visibility score
+          const visibilityScore = submission.result_aeo?.score || 0;
+          
+          // Calculate final score
+          const finalScore = Math.round(
+            lighthouseScore * (1 - weights.visibility) +
+            visibilityScore * weights.visibility
+          );
+          
+          return {
+            submission_id: submission.id,
+            visibility_score: finalScore,
+            meta: {
+              components: {
+                lighthouse: lighthouseScore,
+                visibility: visibilityScore
+              },
+              weights
+            }
+          };
+        `
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Update Final Score",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/submissions?id=eq.{{$json.submission_id}}",
+        "method": "PATCH",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "visibility_score": "={{$json.visibility_score}}",
+          "meta": "={{$json.meta}}",
+          "status": "succeeded",
+          "progress": 100,
+          "processed_at": "={{$now}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Log Webhook Run Complete",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs?id=eq.{{$json.webhook_run_id}}",
+        "method": "PATCH",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "status": "completed",
+          "response": "={{$json}}",
+          "duration_ms": "={{Date.now() - new Date($json.started_at).getTime()}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Log Error",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/webhook_runs?id=eq.{{$json.webhook_run_id}}",
+        "method": "PATCH",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "status": "failed",
+          "error_code": "={{$error.type}}",
+          "error_message": "={{$error.message}}",
+          "duration_ms": "={{Date.now() - new Date($json.started_at).getTime()}}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Receive Results": {
+      "main": [["Log Webhook Run Start"]]
+    },
+    "Log Webhook Run Start": {
+      "main": [["Fetch Submission"]],
+      "error": [["Log Error"]]
+    },
+    "Fetch Submission": {
+      "main": [["Calculate Final Score"]],
+      "error": [["Log Error"]]
+    },
+    "Calculate Final Score": {
+      "main": [["Update Final Score"]],
+      "error": [["Log Error"]]
+    },
+    "Update Final Score": {
+      "main": [["Log Webhook Run Complete"]],
+      "error": [["Log Error"]]
+    }
+  }
+}
