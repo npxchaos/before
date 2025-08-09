@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 
 export interface UrlSubmitFormProps {
   onSubmitted?: (submissionId: string) => void
@@ -17,18 +17,25 @@ function isValidUrl(value: string): boolean {
 export function UrlSubmitForm({ onSubmitted, className, variant = "stacked" }: UrlSubmitFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const isLockedRef = useRef(false)
+  const lastSubmitAtRef = useRef<number>(0)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (isSubmitting) return
+    const now = Date.now()
+    if (isLockedRef.current || now - lastSubmitAtRef.current < 800) return
+    lastSubmitAtRef.current = now
+    isLockedRef.current = true
     setIsSubmitting(true)
     setError(null)
 
-    const formData = new FormData(e.currentTarget)
+    const formEl = e.currentTarget
+    const formData = new FormData(formEl)
     const url = String(formData.get("url") || "").trim()
     if (!isValidUrl(url)) {
       setError("Enter a valid URL")
       setIsSubmitting(false)
+      isLockedRef.current = false
       return
     }
 
@@ -39,14 +46,16 @@ export function UrlSubmitForm({ onSubmitted, className, variant = "stacked" }: U
         body: JSON.stringify({ url }),
       })
       if (!res.ok) throw new Error("Failed to submit")
-      const data: SubmitUrlResponse = await res.json()
-      onSubmitted?.(data.submissionId)
-      e.currentTarget.reset()
+      const data: any = await res.json()
+      const submissionId: string | undefined = data?.submissionId || data?.id || data?.data?.id
+      if (submissionId) onSubmitted?.(submissionId)
+      formEl.reset()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong"
       setError(message)
     } finally {
       setIsSubmitting(false)
+      isLockedRef.current = false
     }
   }
 
@@ -60,6 +69,7 @@ export function UrlSubmitForm({ onSubmitted, className, variant = "stacked" }: U
           type="url"
           placeholder="Enter the website url"
           autoComplete="url"
+          disabled={isSubmitting}
           required
           data-testid="url-input"
           aria-label="Website URL input field"
@@ -97,6 +107,7 @@ export function UrlSubmitForm({ onSubmitted, className, variant = "stacked" }: U
         name="url"
         type="url"
         autoComplete="url"
+        disabled={isSubmitting}
         required
         data-testid="url-input"
         aria-label="Website URL input field"

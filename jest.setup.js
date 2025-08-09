@@ -1,5 +1,10 @@
 import '@testing-library/jest-dom'
 
+// Provide test env vars for code paths that read NEXT_PUBLIC_*
+process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co'
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test_anon_key'
+process.env.NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
   useRouter() {
