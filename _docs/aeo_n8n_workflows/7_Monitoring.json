@@ -124,7 +124,7 @@
       "name": "Send Hourly Report",
       "parameters": {
         "channel": "monitoring-metrics",
-        "text": "=📊 *Hourly Metrics Report*\\n\\n{{$json.report.map(r => \`\${r.metric} (\${r.workflow}/\${r.status}): \${r.value}\`).join('\\n')}}",
+        "text": "=📊 *Hourly Metrics Report*\\n\\n{{$json.report.map(r => r.metric + ' (' + r.workflow + '/' + r.status + '): ' + r.value).join('\\n')}}",
         "otherOptions": {
           "color": "#0066cc"
         }
