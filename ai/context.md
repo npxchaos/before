@@ -1,5 +1,5 @@
 # Project Context
-_Last updated: 2025-08-09T19:56:17.748Z_
+_Last updated: 2025-08-09T20:17:56.489Z_
 
 ## Overview
 - Repo: before.useprompta
@@ -14,8 +14,22 @@ _Last updated: 2025-08-09T19:56:17.748Z_
 
 ## TypeScript
 - TSConfig: present
+- Strict: true
+- Module Resolution: bundler
+- Paths: @/*
 
 
+## Next.js Config (excerpt)
+```ts
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  /* config options here */
+};
+
+export default nextConfig;
+
+```
 
 
 
@@ -41,6 +55,58 @@ _Last updated: 2025-08-09T19:56:17.748Z_
 - `context:update`: node scripts/gen-context.mjs
 - `prepare`: husky
 
+
+## App Router
+- Pages (4):
+  - /dashboard (src/app/dashboard/page.tsx)
+  - /login (src/app/login/page.tsx)
+  - / (src/app/page.tsx)
+  - /verify-email (src/app/verify-email/page.tsx)
+- API Routes (1):
+  - /api/submit-url (src/app/api/submit-url/route.ts)
+
+
+## Components Snapshot
+- Hero.tsx
+- Navbar.tsx
+- ThemeProvider.tsx
+- __tests__/
+- auth/
+- dashboard/
+- forms/
+- providers/
+- ui/
+
+
+## n8n Workflows
+- 1_Orchestrator.json
+- 2_Page_Audit.json
+- 3_AI_Visibility_Tracker.json
+- 4_Result_Aggregator.json
+- 5_Full_Site_Crawler.json
+- 6_Respond_Error.json
+- 7_Monitoring.json
+
+
+## Supabase Migrations (12)
+- 001_create_submissions_table.sql
+- 002_create_n8n_webhook.sql
+- 003_webhook_monitoring_queries.sql
+- 004_test_webhook_function.sql
+- 005_clean_n8n_webhook_setup.sql
+- 006_simple_n8n_webhook.sql
+- 007_add_user_id_to_submissions.sql
+- 008_enhance_submissions_table.sql
+- 009_create_webhook_runs.sql
+- 010_create_monitoring.sql
+- 011_create_monitoring_views.sql
+- 012_add_progress_column.sql
+
+
+## Tests (1)
+- src/components/__tests__/Hero.test.tsx
+
+
 ## Recent Commits
 - c8c0ace 2025-08-09 fix(hero): preserve original Hero layout and embed UrlSubmitForm inline without visual changes
 - 8edc977 2025-08-09 refactor(form): extract URL submit form into reusable component and integrate in Hero
@@ -55,13 +121,17 @@ _Last updated: 2025-08-09T19:56:17.748Z_
 
 ## Changed Files (not committed)
 ```
-M _docs/aeo_n8n_workflows/5_Full_Site_Crawler.json
+M .env
+ M _docs/aeo_n8n_workflows/5_Full_Site_Crawler.json
  D _docs/aeo_n8n_workflows/6_Progress_Patch.json
+A  ai/context.md
  M package-lock.json
  M package.json
+A  src/app/login/page.tsx
+ M src/components/__tests__/Hero.test.tsx
+M  src/components/forms/url-submit-form/UrlSubmitForm.tsx
 ?? .cursor/
 ?? .husky/
-?? _docs/aeo_n8n_workflows/7_Monitoring.json.zip
 ?? _docs/aeo_n8n_workflows_final_final_copy_copy.zip
 ?? scripts/
 ```

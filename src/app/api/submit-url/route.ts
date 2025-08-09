@@ -29,24 +29,24 @@ function isValidUrl(url: string): boolean {
 }
 
 // Rate limiting (simple in-memory store - in production, use Redis or similar)
-const submissionStore = new Map<string, number>();
+interface RateLimitState { windowStartMs: number; count: number }
+const submissionStore = new Map<string, RateLimitState>();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const MAX_SUBMISSIONS_PER_WINDOW = 5;
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
-  const submissions = submissionStore.get(ip) || 0;
-  
-  if (now - submissions > RATE_LIMIT_WINDOW) {
-    submissionStore.set(ip, now);
+  const state = submissionStore.get(ip);
+
+  if (!state || now - state.windowStartMs > RATE_LIMIT_WINDOW) {
+    submissionStore.set(ip, { windowStartMs: now, count: 1 });
     return false;
   }
-  
-  if (submissions >= MAX_SUBMISSIONS_PER_WINDOW) {
-    return true;
-  }
-  
-  submissionStore.set(ip, submissions + 1);
+
+  if (state.count >= MAX_SUBMISSIONS_PER_WINDOW) return true;
+
+  state.count += 1;
+  submissionStore.set(ip, state);
   return false;
 }
 

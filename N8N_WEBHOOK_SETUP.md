@@ -76,15 +76,18 @@ LIMIT 10;
 
 ## 📊 **Payload Format**
 
-The webhook sends this JSON payload to n8n:
+The webhook now sends this JSON payload to n8n:
 
 ```json
 {
+  "submission_id": "uuid-of-submission",
   "id": "uuid-of-submission",
   "url": "https://example.com",
+  "plan_tier": "free",
   "status": "pending",
   "created_at": "2025-08-08T20:30:00.000Z",
   "updated_at": "2025-08-08T20:30:00.000Z",
+  "started_at": "2025-08-08T20:30:00.000Z",
   "event_type": "submission_created",
   "timestamp": "2025-08-08T20:30:00.000Z"
 }
@@ -230,5 +233,5 @@ If you encounter issues:
 ---
 
 **🎯 Status:** Ready for deployment  
-**📅 Last Updated:** 2025-08-08  
-**🔗 Webhook URL:** `https://primary-production-aada.up.railway.app/webhook/dfd717ed-cfe9-42c7-ba47-c935cbb5650b`
+**📅 Last Updated:** 2025-08-09  
+**🔗 Webhook URL:** `https://primary-production-aada.up.railway.app/webhook/orchestrator`
