@@ -28,6 +28,8 @@
 
 ## 🎯 **Immediate Next Steps (This Week)**
 
+> 🔥 **NEW**: See [PHASE2.md](./PHASE2.md) for detailed end-to-end implementation plan of n8n ↔ Supabase ↔ Frontend workflow, including data contracts, checklists, and acceptance criteria.
+
 ### 1. **User Authentication System** 🔐
 ```bash
 # Priority: HIGH

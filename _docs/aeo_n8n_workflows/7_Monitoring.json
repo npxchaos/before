@@ -1,0 +1,207 @@
+{
+  "name": "7_Monitoring",
+  "nodes": [
+    {
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "name": "Every 5 Minutes",
+      "parameters": {
+        "interval": [
+          {
+            "field": "minutes",
+            "value": 5
+          }
+        ]
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Fetch Active Alerts",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/monitoring_alerts?status=eq.active&select=*",
+        "method": "GET",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.function",
+      "name": "Process Alerts",
+      "parameters": {
+        "functionCode": `
+          const alerts = $input.first().json;
+          
+          // Group alerts by severity
+          const grouped = alerts.reduce((acc, alert) => {
+            if (!acc[alert.severity]) {
+              acc[alert.severity] = [];
+            }
+            acc[alert.severity].push(alert);
+            return acc;
+          }, {});
+          
+          // Format message for each severity
+          const messages = Object.entries(grouped).map(([severity, alerts]) => {
+            const count = alerts.length;
+            const summary = alerts.map(a => {
+              const details = typeof a.details === 'string' ? JSON.parse(a.details) : a.details;
+              switch(a.type) {
+                case 'high_error_rate':
+                  return \`Error rate: \${(details.error_rate * 100).toFixed(1)}% (threshold: \${(details.threshold * 100).toFixed(1)}%)\`;
+                case 'stuck_submission':
+                  return \`Submission \${details.submission_id} stuck at \${details.progress}%\`;
+                case 'high_rate_limit_usage':
+                  return \`User \${details.user_id} at \${details.usage_percent}% of \${details.plan_tier} limit\`;
+                default:
+                  return a.message;
+              }
+            }).join('\\n');
+            
+            return {
+              severity,
+              count,
+              summary
+            };
+          });
+          
+          return { messages };
+        `
+      }
+    },
+    {
+      "type": "n8n-nodes-base.if",
+      "name": "Has Critical Alerts",
+      "parameters": {
+        "conditions": [
+          {
+            "value1": "={{$json.messages.find(m => m.severity === 'critical')?.count || 0}}",
+            "value2": 0,
+            "operation": ">"
+          }
+        ]
+      }
+    },
+    {
+      "type": "n8n-nodes-base.slack",
+      "name": "Send Critical Alert",
+      "parameters": {
+        "channel": "monitoring-alerts",
+        "text": "=🚨 *CRITICAL ALERTS*\\n\\n{{$json.messages.find(m => m.severity === 'critical').summary}}",
+        "otherOptions": {
+          "color": "#ff0000"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.if",
+      "name": "Has Warning Alerts",
+      "parameters": {
+        "conditions": [
+          {
+            "value1": "={{$json.messages.find(m => m.severity === 'warning')?.count || 0}}",
+            "value2": 0,
+            "operation": ">"
+          }
+        ]
+      }
+    },
+    {
+      "type": "n8n-nodes-base.slack",
+      "name": "Send Warning Alert",
+      "parameters": {
+        "channel": "monitoring-alerts",
+        "text": "=⚠️ *WARNING ALERTS*\\n\\n{{$json.messages.find(m => m.severity === 'warning').summary}}",
+        "otherOptions": {
+          "color": "#ffa500"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Fetch Recent Metrics",
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/monitoring_metrics?select=*&timestamp=gte.{{new Date(Date.now() - 3600000).toISOString()}}",
+        "method": "GET",
+        "headers": {
+          "apikey": "={{$env.SUPABASE_SERVICE_ROLE}}",
+          "Authorization": "=Bearer {{$env.SUPABASE_SERVICE_ROLE}}"
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.function",
+      "name": "Generate Report",
+      "parameters": {
+        "functionCode": `
+          const metrics = $input.first().json;
+          
+          // Calculate averages by metric
+          const averages = metrics.reduce((acc, m) => {
+            const key = \`\${m.metric_name}:\${JSON.stringify(m.labels)}\`;
+            if (!acc[key]) {
+              acc[key] = {
+                sum: 0,
+                count: 0,
+                labels: m.labels
+              };
+            }
+            acc[key].sum += m.metric_value;
+            acc[key].count++;
+            return acc;
+          }, {});
+          
+          // Format report
+          const report = Object.entries(averages).map(([key, data]) => {
+            const avg = data.sum / data.count;
+            const workflow = data.labels?.workflow_name || 'all';
+            const status = data.labels?.status || 'all';
+            
+            return {
+              metric: key.split(':')[0],
+              workflow,
+              status,
+              value: avg.toFixed(2)
+            };
+          });
+          
+          return { report };
+        `
+      }
+    },
+    {
+      "type": "n8n-nodes-base.slack",
+      "name": "Send Hourly Report",
+      "parameters": {
+        "channel": "monitoring-metrics",
+        "text": "=📊 *Hourly Metrics Report*\\n\\n{{$json.report.map(r => \`\${r.metric} (\${r.workflow}/\${r.status}): \${r.value}\`).join('\\n')}}",
+        "otherOptions": {
+          "color": "#0066cc"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [["Fetch Active Alerts", "Fetch Recent Metrics"]]
+    },
+    "Fetch Active Alerts": {
+      "main": [["Process Alerts"]]
+    },
+    "Process Alerts": {
+      "main": [["Has Critical Alerts", "Has Warning Alerts"]]
+    },
+    "Has Critical Alerts": {
+      "main": [["Send Critical Alert"]]
+    },
+    "Has Warning Alerts": {
+      "main": [["Send Warning Alert"]]
+    },
+    "Fetch Recent Metrics": {
+      "main": [["Generate Report"]]
+    },
+    "Generate Report": {
+      "main": [["Send Hourly Report"]]
+    }
+  }
+}
