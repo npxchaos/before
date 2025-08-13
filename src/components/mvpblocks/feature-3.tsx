@@ -7,6 +7,7 @@ import {
   LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Logo } from '@/components/ui/Logo';
 
 // Define the feature item type
 type FeatureItem = {
@@ -121,8 +122,8 @@ export default function Feature3() {
               <span className="from-primary/0 via-primary to-primary/0 absolute -bottom-px left-1/2 h-px w-2/5 -translate-x-1/2 bg-gradient-to-r"></span>
               <span className="absolute inset-0 bg-[radial-gradient(30%_40%_at_50%_100%,hsl(var(--primary)/0.25)_0%,transparent_100%)]"></span>
             </div>
-            <h2 className="text-foreground mb-2 text-center text-2xl sm:mb-2.5 md:text-[2rem]">
-              Why Choose Prompta?
+            <h2 className="text-foreground mb-2 text-center text-2xl sm:mb-2.5 md:text-[2rem] flex items-center justify-center gap-2">
+              Why Choose <Logo width={60} height={12} className="text-foreground" />?
             </h2>
             <p className="text-muted-foreground mx-auto max-w-[18rem] text-center text-pretty">
               The most comprehensive AI Answer Engine Optimization platform with automated workflows and real-time insights

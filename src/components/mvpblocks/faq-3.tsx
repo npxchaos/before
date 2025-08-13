@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Logo } from '@/components/ui/Logo';
 
 interface FAQItemProps {
   question: string;
@@ -173,7 +174,7 @@ export default function Faq3() {
             Frequently Asked Questions
           </h2>
           <p className="text-muted-foreground text-sm">
-            Everything you need to know about Prompta and AEO optimization
+            Everything you need to know about <Logo width={40} height={8} className="text-muted-foreground inline" /> and AEO optimization
           </p>
         </motion.div>
 

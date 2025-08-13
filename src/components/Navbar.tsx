@@ -6,6 +6,7 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { Logo } from "@/components/ui/Logo";
 import { useState } from "react";
 
 export function Navbar(): ReactElement {
@@ -22,8 +23,8 @@ export function Navbar(): ReactElement {
   return (
     <header className="w-full">
       <div className="mx-auto max-w-[1200px] px-6 py-5 flex items-center justify-between">
-        <Link href="/" className="text-base font-semibold tracking-tight">
-          prompta
+        <Link href="/" className="text-foreground hover:text-foreground/80 transition-colors">
+          <Logo width={94} height={19} />
         </Link>
 
         <nav className="hidden md:flex items-center gap-7">

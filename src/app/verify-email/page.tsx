@@ -5,6 +5,7 @@ import {
   Toast, 
   ToastMessage 
 } from "@/components/ui/FeedbackComponents"
+import { Logo } from "@/components/ui/Logo"
 
 export default function VerifyEmailPage() {
   const [showModal, setShowModal] = useState(false)
@@ -93,7 +94,7 @@ export default function VerifyEmailPage() {
               {/* Welcome Message */}
               <div className="bg-muted/50 dark:bg-muted/20 rounded-lg p-4">
                 <p className="text-sm text-foreground">
-                  Welcome to Prompta! 🎉
+                  Welcome to <Logo width={60} height={12} className="text-foreground inline" />! 🎉
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   You&apos;re all set to start using our AI-powered tools.
