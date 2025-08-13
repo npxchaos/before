@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { LoginForm } from "@/components/auth/LoginForm"
 import { SignupForm } from "@/components/auth/SignupForm"
-import { Logo } from "@/components/ui/Logo"
 
 export default function LoginPage() {
   return (
@@ -29,13 +28,7 @@ function LoginPageContent() {
     if (m === "login" || m === "signup") setMode(m)
   }, [searchParams])
 
-  const title = useMemo(() => (
-    mode === "login" ? (
-      <>Sign in to <Logo width={60} height={12} className="text-foreground inline" /></>
-    ) : (
-      <>Create your <Logo width={60} height={12} className="text-foreground inline" /> account</>
-    )
-  ), [mode])
+  const title = useMemo(() => (mode === "login" ? "Sign in to Prompta" : "Create your Prompta account"), [mode])
 
   return (
     <div className={cn("min-h-screen bg-background flex items-center justify-center px-4")}> 
