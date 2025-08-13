@@ -1,6 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Hero } from '../Hero'
+import { useAuth } from '@/components/providers/AuthProvider'
 
 // Mock fetch globally
 global.fetch = jest.fn()
@@ -10,7 +11,14 @@ jest.mock('@/lib/utils', () => ({
   cn: (...classes: string[]) => classes.filter(Boolean).join(' '),
 }))
 
-// Mock Auth to avoid needing a real provider in unit tests
+// Mock the Beams component to avoid Three.js issues in tests
+jest.mock('@/components/ui/Beams', () => {
+  return function MockBeams() {
+    return <div data-testid="beams-background" />
+  }
+})
+
+// Mock the AuthProvider
 jest.mock('@/components/providers/AuthProvider', () => ({
   useAuth: () => ({
     user: null,

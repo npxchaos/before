@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation"
 import { UrlSubmitForm } from "@/components/forms/url-submit-form/UrlSubmitForm"
 import { useAuth } from "@/components/providers/AuthProvider"
+import Beams from "@/components/ui/Beams"
 // import { cn } from "@/lib/utils"
 
 export function Hero() {
@@ -9,6 +10,20 @@ export function Hero() {
   const { user } = useAuth()
   return (
     <section className="relative overflow-hidden">
+      {/* Beams Background */}
+      <div className="absolute inset-0 -z-10">
+        <Beams
+          beamWidth={2}
+          beamHeight={15}
+          beamNumber={12}
+          lightColor="var(--primary)"
+          speed={2}
+          noiseIntensity={1.75}
+          scale={0.2}
+          rotation={0}
+        />
+      </div>
+
       <div className="mx-auto max-w-[1200px] px-6 py-20">
         <div className="text-center">
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
