@@ -9,5 +9,3 @@ export function Beams() {
     </div>
   );
 }
-
-export default Beams;

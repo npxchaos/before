@@ -1,15 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, screen } from '@testing-library/react'
 import Hero from '../Hero'
 import { useAuth } from '@/components/providers/AuthProvider'
-
-// Mock fetch globally
-global.fetch = jest.fn()
-
-// Mock the utils function
-jest.mock('@/lib/utils', () => ({
-  cn: (...classes: string[]) => classes.filter(Boolean).join(' '),
-}))
 
 // Mock the Beams component to avoid Three.js issues in tests
 jest.mock('@/components/ui/Beams', () => ({
@@ -18,241 +9,102 @@ jest.mock('@/components/ui/Beams', () => ({
   }
 }))
 
-// Mock the AuthProvider
 jest.mock('@/components/providers/AuthProvider', () => ({
-  useAuth: () => ({
-    user: null,
-    loading: false,
-    signIn: jest.fn(),
-    signUp: jest.fn(),
-    signOut: jest.fn(),
-    resetPassword: jest.fn(),
-  }),
+  useAuth: jest.fn(),
 }))
 
 describe('Hero Component', () => {
+  const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>
+
   beforeEach(() => {
-    // Clear all mocks before each test
+    mockUseAuth.mockReturnValue({
+      user: null,
+      loading: false,
+      signIn: jest.fn(),
+      signUp: jest.fn(),
+      signOut: jest.fn(),
+      resetPassword: jest.fn(),
+    })
+  })
+
+  afterEach(() => {
     jest.clearAllMocks()
-    // Fully reset fetch mock (clears queued implementations)
-    ;(global.fetch as jest.Mock).mockReset()
   })
 
   it('renders the hero section with correct content', () => {
     render(<Hero />)
     
     // Check main heading
-    expect(screen.getByText(/turn any webpage into/i)).toBeInTheDocument()
-    expect(screen.getByText(/an AI answer engine/i)).toBeInTheDocument()
+    expect(screen.getByText(/transform your content with ai-powered aeo/i)).toBeInTheDocument()
     
     // Check description
-    expect(screen.getByText(/Get featured answers in Google Search and AI tools/i)).toBeInTheDocument()
+    expect(screen.getByText(/leverage artificial intelligence to optimize your content/i)).toBeInTheDocument()
+    
+    // Check for sign up button when not authenticated
+    expect(screen.getByText(/get started free/i)).toBeInTheDocument()
+    expect(screen.getByText(/sign in/i)).toBeInTheDocument()
   })
 
-  it('renders the form with correct attributes', () => {
-    render(<Hero />)
-    
-    const form = screen.getByRole('form')
-    expect(form).toBeInTheDocument()
-    expect(form).toHaveAttribute('id', 'audit-form')
-    expect(form).toHaveAttribute('name', 'auditForm')
-  })
-
-  it('renders the URL input with correct attributes', () => {
-    render(<Hero />)
-    
-    const input = screen.getByLabelText('Website URL input field')
-    expect(input).toBeInTheDocument()
-    expect(input).toHaveAttribute('id', 'url-input')
-    expect(input).toHaveAttribute('name', 'url')
-    expect(input).toHaveAttribute('type', 'url')
-    expect(input).toHaveAttribute('placeholder', 'Enter the website url')
-    expect(input).toHaveAttribute('autoComplete', 'url')
-    expect(input).toHaveAttribute('data-testid', 'url-input')
-    expect(input).toHaveAttribute('aria-label', 'Website URL input field')
-    expect(input).toBeRequired()
-  })
-
-  it('renders the submit button with correct attributes', () => {
-    render(<Hero />)
-    
-    const button = screen.getByRole('button', { name: /submit url/i })
-    expect(button).toBeInTheDocument()
-    expect(button).toHaveAttribute('type', 'submit')
-  })
-
-  it('renders platform badges', () => {
-    render(<Hero />)
-    
-    expect(screen.getByText('Webflow')).toBeInTheDocument()
-    expect(screen.getByText('SEMrush')).toBeInTheDocument()
-    expect(screen.getByText('Zapier')).toBeInTheDocument()
-    expect(screen.getByText('Hubspot')).toBeInTheDocument()
-  })
-
-  it('submits valid URL successfully', async () => {
-    const user = userEvent.setup()
-    
-    // Mock successful API response
-    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        success: true,
-        message: 'URL submitted successfully!',
-        data: {
-          id: 'test-id',
-          url: 'https://example.com',
-          status: 'pending',
-          createdAt: '2025-08-08T20:00:00.000Z',
-        },
-      }),
+  it('renders dashboard button when user is authenticated', () => {
+    mockUseAuth.mockReturnValue({
+      user: { 
+        id: 'test-id',
+        email: 'test@example.com',
+        app_metadata: {},
+        user_metadata: {},
+        aud: 'authenticated',
+        created_at: '2025-01-01T00:00:00.000Z'
+      },
+      loading: false,
+      signIn: jest.fn(),
+      signUp: jest.fn(),
+      signOut: jest.fn(),
+      resetPassword: jest.fn(),
     })
-    
+
     render(<Hero />)
     
-    const input = screen.getByLabelText('Website URL input field')
-    const submitButton = screen.getByRole('button', { name: /submit url/i })
-    
-    await user.type(input, 'https://example.com')
-    await user.click(submitButton)
-    
-    // Check that fetch was called with correct parameters
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/submit-url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url: 'https://example.com' }),
-      })
-    })
+    expect(screen.getByText(/go to dashboard/i)).toBeInTheDocument()
+    expect(screen.queryByText(/get started free/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/sign in/i)).not.toBeInTheDocument()
   })
 
-  it('handles API errors gracefully', async () => {
-    const user = userEvent.setup()
-    
-    // Mock API error response
-    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      json: async () => ({
-        success: false,
-        message: 'Internal server error',
-      }),
-    })
-    
+  it('renders the background beams component', () => {
     render(<Hero />)
     
-    const input = screen.getByLabelText('Website URL input field')
-    const submitButton = screen.getByRole('button', { name: /submit url/i })
-    
-    await user.type(input, 'https://example.com')
-    await user.click(submitButton)
-    
-    await waitFor(() => {
-      // Inline error alert
-      expect(screen.getByRole('alert')).toHaveTextContent(/Failed to submit|Internal server error/i)
-    })
+    expect(screen.getByTestId('beams-background')).toBeInTheDocument()
   })
 
-  it('handles network errors', async () => {
-    const user = userEvent.setup()
-    
-    // Mock network error
-    ;(global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'))
-    
+  it('has correct button links', () => {
     render(<Hero />)
     
-    const input = screen.getByLabelText('Website URL input field')
-    const submitButton = screen.getByRole('button', { name: /submit url/i })
+    const signUpButton = screen.getByText(/get started free/i).closest('a')
+    const signInButton = screen.getByText(/sign in/i).closest('a')
     
-    await user.type(input, 'https://example.com')
-    await user.click(submitButton)
-    
-    await waitFor(() => {
-      // Inline error alert
-      expect(screen.getByRole('alert')).toHaveTextContent(/Network error/i)
-    })
+    expect(signUpButton).toHaveAttribute('href', '/signup')
+    expect(signInButton).toHaveAttribute('href', '/login')
   })
 
-  it('shows loading state during submission', async () => {
-    const user = userEvent.setup()
-    
-    // Mock delayed API response
-    ;(global.fetch as jest.Mock).mockImplementationOnce(
-      () => new Promise(resolve => setTimeout(resolve, 100))
-    )
-    
+  it('has correct dashboard link when authenticated', () => {
+    mockUseAuth.mockReturnValue({
+      user: { 
+        id: 'test-id',
+        email: 'test@example.com',
+        app_metadata: {},
+        user_metadata: {},
+        aud: 'authenticated',
+        created_at: '2025-01-01T00:00:00.000Z'
+      },
+      loading: false,
+      signIn: jest.fn(),
+      signUp: jest.fn(),
+      signOut: jest.fn(),
+      resetPassword: jest.fn(),
+    })
+
     render(<Hero />)
     
-    const input = screen.getByLabelText('Website URL input field')
-    const submitButton = screen.getByRole('button', { name: /submit url/i })
-    
-    await user.type(input, 'https://example.com')
-    await user.click(submitButton)
-    
-    // Check loading state
-    expect(screen.getByText(/Processing your URL/i)).toBeInTheDocument()
-    expect(submitButton).toBeDisabled()
-    expect(input).toBeDisabled()
+    const dashboardButton = screen.getByText(/go to dashboard/i).closest('a')
+    expect(dashboardButton).toHaveAttribute('href', '/dashboard')
   })
-
-  it('prevents multiple submissions', async () => {
-    const user = userEvent.setup()
-    
-    // Mock API response
-    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true, message: 'Success' }),
-    })
-    
-    render(<Hero />)
-    
-    const input = screen.getByLabelText('Website URL input field')
-    const submitButton = screen.getByRole('button', { name: /submit url/i })
-    
-    await user.type(input, 'https://example.com')
-    
-    // Click submit multiple times
-    await user.click(submitButton)
-    await user.click(submitButton)
-    await user.click(submitButton)
-    
-    // Should only call fetch once
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledTimes(1)
-    })
-  })
-
-  it('clears form after successful submission', async () => {
-    const user = userEvent.setup()
-    
-    // Mock successful API response
-    ;(global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        success: true,
-        message: 'URL submitted successfully!',
-        data: { id: 'test-id', url: 'https://example.com', status: 'pending' },
-      }),
-    })
-    
-    render(<Hero />)
-    
-    const input = screen.getByLabelText('Website URL input field') as HTMLInputElement
-    const submitButton = screen.getByRole('button', { name: /submit url/i })
-    
-    await user.type(input, 'https://example.com')
-    expect(input.value).toBe('https://example.com')
-    
-    await user.click(submitButton)
-    
-    await waitFor(() => {
-      expect(input.value).toBe('')
-    })
-  })
-
-  it.skip('shows toast notification on success', async () => {})
-
-  it.skip('shows toast notification on error', async () => {})
 })
