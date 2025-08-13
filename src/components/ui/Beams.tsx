@@ -104,6 +104,16 @@ const hexToNormalizedRGB = (hex: string): [number, number, number] => {
   return [r / 255, g / 255, b / 255];
 };
 
+// Função para obter cores do tema CSS
+const getThemeColor = (cssVariable: string): string => {
+  if (typeof window !== 'undefined') {
+    const computedStyle = getComputedStyle(document.documentElement);
+    const color = computedStyle.getPropertyValue(cssVariable).trim();
+    return color || '#7033ff'; // fallback para primary
+  }
+  return '#7033ff';
+};
+
 const noise = `
 float random (in vec2 st) {
     return fract(sin(dot(st.xy,
@@ -196,7 +206,7 @@ const Beams: FC<BeamsProps> = ({
   beamWidth = 2,
   beamHeight = 15,
   beamNumber = 12,
-  lightColor = "#ffffff",
+  lightColor = "var(--primary)",
   speed = 2,
   noiseIntensity = 1.75,
   scale = 0.2,
@@ -205,6 +215,10 @@ const Beams: FC<BeamsProps> = ({
   const meshRef = useRef<
     THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>
   >(null!);
+
+  // Obter cores do tema dinamicamente
+  const primaryColor = getThemeColor('--primary');
+  const backgroundColor = getThemeColor('--background');
 
   const beamMaterial = useMemo(
     () =>
@@ -250,7 +264,7 @@ const Beams: FC<BeamsProps> = ({
         },
         material: { fog: true },
         uniforms: {
-          diffuse: new THREE.Color(...hexToNormalizedRGB("#000000")),
+          diffuse: new THREE.Color(...hexToNormalizedRGB(primaryColor)),
           time: { shared: true, mixed: true, linked: true, value: 0 },
           roughness: 0.3,
           metalness: 0.3,
@@ -260,7 +274,7 @@ const Beams: FC<BeamsProps> = ({
           uScale: scale,
         },
       }),
-    [speed, noiseIntensity, scale]
+    [speed, noiseIntensity, scale, primaryColor]
   );
 
   return (
@@ -276,7 +290,7 @@ const Beams: FC<BeamsProps> = ({
         <DirLight color={lightColor} position={[0, 3, 10]} />
       </group>
       <ambientLight intensity={1} />
-      <color attach="background" args={["#000000"]} />
+      <color attach="background" args={[backgroundColor]} />
       <PerspectiveCamera makeDefault position={[0, 0, 20]} fov={30} />
     </CanvasWrapper>
   );
