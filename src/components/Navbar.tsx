@@ -60,14 +60,15 @@ export function Navbar(): ReactElement {
           {/* Theme toggle */}
           <button
             aria-label="Toggle theme"
-            className="ml-3 h-6 w-12 rounded-full border border-border relative"
+            className="ml-3 h-6 w-12 rounded-full border border-border relative bg-background"
             type="button"
             onClick={toggleTheme}
           >
             <span
-              className={`absolute top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-foreground transition-all ${
-                theme === "dark" ? "left-1" : "left-7"
-              }`}
+              className="absolute top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-foreground transition-all duration-200"
+              style={{
+                left: theme === "dark" ? "4px" : "28px"
+              }}
             />
           </button>
         </nav>

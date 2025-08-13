@@ -108,7 +108,7 @@ export function LoginForm({ onSuccess, onSwitchToSignup, className }: LoginFormP
             className={cn(
               "w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200",
               isLoading && "opacity-50 cursor-not-allowed",
-              error && "border-red-500 focus:ring-red-500"
+              error && "border-destructive focus:ring-destructive"
             )}
             placeholder="Enter your email"
           />
@@ -128,7 +128,7 @@ export function LoginForm({ onSuccess, onSwitchToSignup, className }: LoginFormP
             className={cn(
               "w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200",
               isLoading && "opacity-50 cursor-not-allowed",
-              error && "border-red-500 focus:ring-red-500"
+              error && "border-destructive focus:ring-destructive"
             )}
             placeholder="Enter your password"
           />
