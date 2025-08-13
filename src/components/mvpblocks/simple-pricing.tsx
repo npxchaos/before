@@ -1,5 +1,6 @@
 'use client';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import NumberFlow from '@number-flow/react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -65,9 +66,9 @@ export default function SimplePricing() {
   return (
     <div className="not-prose relative flex w-full flex-col gap-16 overflow-hidden px-4 py-24 text-center sm:px-8">
       <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="bg-primary/10 absolute -top-[10%] left-[50%] h-[40%] w-[60%] -translate-x-1/2 rounded-full blur-3xl"></div>
-        <div className="bg-primary/5 absolute -right-[10%] -bottom-[10%] h-[40%] w-[40%] rounded-full blur-3xl"></div>
-        <div className="bg-primary/5 absolute -bottom-[10%] -left-[10%] h-[40%] w-[40%] rounded-full blur-3xl"></div>
+        <div className="bg-primary/10 absolute -top-[10%] left-[50%] h-[40%] w-[60%] -translate-x-1/2 rounded-full blur-3xl animate-pulse"></div>
+        <div className="bg-primary/5 absolute -right-[10%] -bottom-[10%] h-[40%] w-[40%] rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="bg-primary/5 absolute -bottom-[10%] -left-[10%] h-[40%] w-[40%] rounded-full blur-3xl animate-pulse delay-2000"></div>
       </div>
 
       <div className="flex flex-col items-center justify-center gap-8">
@@ -100,17 +101,17 @@ export default function SimplePricing() {
         {/* Pricing Cards */}
         <div className="grid w-full max-w-5xl gap-8 md:grid-cols-2">
           {plans.map((plan) => (
-            <div key={plan.id} className="relative">
+            <div key={plan.id} className="relative group">
               <Card
                 className={cn(
-                  'relative h-full transition-all duration-300 hover:shadow-lg',
+                  'relative h-full transition-all duration-500 hover:shadow-xl hover:scale-[1.02]',
                   plan.popular
                     ? 'border-primary/20 shadow-primary/10 shadow-lg'
-                    : 'hover:border-primary/10',
+                    : 'border-border/50 hover:border-primary/20 hover:shadow-lg',
                 )}
               >
                 {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 animate-bounce">
                     <Badge className="bg-primary text-primary-foreground px-3 py-1 text-sm">
                       Most Popular
                     </Badge>
@@ -121,17 +122,17 @@ export default function SimplePricing() {
                   <div className="flex items-center gap-3">
                     <div
                       className={cn(
-                        'flex h-10 w-10 items-center justify-center rounded-lg',
+                        'flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-300',
                         plan.popular
-                          ? 'bg-primary/10 text-primary'
-                          : 'bg-secondary text-foreground',
+                          ? 'bg-primary/10 text-primary group-hover:scale-110'
+                          : 'bg-secondary text-foreground group-hover:scale-110',
                       )}
                     >
                       <plan.icon className="h-4 w-4" />
                     </div>
                     <CardTitle
                       className={cn(
-                        'text-xl font-bold',
+                        'text-xl font-bold transition-colors duration-300',
                         plan.popular && 'text-primary',
                       )}
                     >
@@ -144,13 +145,16 @@ export default function SimplePricing() {
                       <div className="flex items-baseline">
                         <span
                           className={cn(
-                            'text-3xl font-bold',
+                            'text-3xl font-bold transition-colors duration-300',
                             plan.popular ? 'text-primary' : 'text-foreground',
                           )}
                         >
-                          ${plan.price[
-                            frequency as keyof typeof plan.price
-                          ] as number}
+                          <NumberFlow
+                            value={plan.price[
+                              frequency as keyof typeof plan.price
+                            ] as number}
+                            className="inline-block"
+                          />
                         </span>
                         <span className="text-muted-foreground ml-1 text-sm">
                           /month, billed {frequency}
@@ -163,14 +167,14 @@ export default function SimplePricing() {
                   {plan.features.map((feature, index) => (
                     <div
                       key={index}
-                      className="flex items-center gap-2 text-sm"
+                      className="flex items-center gap-2 text-sm transition-all duration-300 hover:translate-x-1"
                     >
                       <div
                         className={cn(
-                          'flex h-5 w-5 items-center justify-center rounded-full',
+                          'flex h-5 w-5 items-center justify-center rounded-full transition-all duration-300',
                           plan.popular
-                            ? 'bg-primary/10 text-primary'
-                            : 'bg-secondary text-secondary-foreground',
+                            ? 'bg-primary/10 text-primary group-hover:scale-110'
+                            : 'bg-secondary text-secondary-foreground group-hover:scale-110',
                         )}
                       >
                         <Check className="h-3.5 w-3.5" />
@@ -191,10 +195,10 @@ export default function SimplePricing() {
                   <Button
                     variant={plan.popular ? 'default' : 'outline'}
                     className={cn(
-                      'w-full font-medium transition-all duration-300',
+                      'w-full font-medium transition-all duration-300 group',
                       plan.popular
-                        ? 'bg-primary hover:bg-primary/90 hover:shadow-primary/20 hover:shadow-md'
-                        : 'hover:border-primary/30 hover:bg-primary/5 hover:text-primary',
+                        ? 'bg-primary hover:bg-primary/90 hover:shadow-primary/20 hover:shadow-md hover:scale-105'
+                        : 'hover:border-primary/30 hover:bg-primary/5 hover:text-primary hover:scale-105',
                     )}
                   >
                     {plan.cta}
@@ -202,14 +206,14 @@ export default function SimplePricing() {
                   </Button>
                 </CardFooter>
 
-                {/* Subtle gradient effects */}
+                {/* Enhanced gradient effects */}
                 {plan.popular ? (
                   <>
-                    <div className="from-primary/[0.05] pointer-events-none absolute right-0 bottom-0 left-0 h-1/2 rounded-b-lg bg-gradient-to-t to-transparent" />
-                    <div className="border-primary/20 pointer-events-none absolute inset-0 rounded-lg border" />
+                    <div className="from-primary/[0.08] via-primary/[0.03] pointer-events-none absolute right-0 bottom-0 left-0 h-1/2 rounded-b-lg bg-gradient-to-t to-transparent" />
+                    <div className="from-primary/5 pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-br to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                   </>
                 ) : (
-                  <div className="hover:border-primary/10 pointer-events-none absolute inset-0 rounded-lg border border-transparent opacity-0 transition-opacity duration-300 hover:opacity-100" />
+                  <div className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-all duration-500 group-hover:opacity-100" />
                 )}
               </Card>
             </div>
