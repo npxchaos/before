@@ -93,7 +93,7 @@ export function UrlSubmitForm({ onSubmitted, className, variant = "stacked" }: U
           )}
         </button>
       </div>
-      {error && <div role="alert" className="mt-2 text-sm text-red-500 text-center">{error}</div>}
+      {error && <div role="alert" className="mt-2 text-sm text-destructive text-center">{error}</div>}
       {isSubmitting && (
         <div className="mt-2 text-sm text-foreground/70 text-center" aria-live="polite">
           Processing your URL...
@@ -121,7 +121,7 @@ export function UrlSubmitForm({ onSubmitted, className, variant = "stacked" }: U
       <button type="submit" disabled={isSubmitting} aria-busy={isSubmitting} className="mt-3">
         {isSubmitting ? "Submitting..." : "Start Audit"}
       </button>
-      {error && <div role="alert" className="mt-2 text-red-500 text-sm">{error}</div>}
+      {error && <div role="alert" className="mt-2 text-destructive text-sm">{error}</div>}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
     </div>
   )

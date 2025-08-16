@@ -2,13 +2,18 @@
 import { useRouter } from "next/navigation"
 import { UrlSubmitForm } from "@/components/forms/url-submit-form/UrlSubmitForm"
 import { useAuth } from "@/components/providers/AuthProvider"
-// import { cn } from "@/lib/utils"
+import { Beams } from "@/components/ui/Beams"
 
-export function Hero() {
+export default function Hero() {
   const router = useRouter()
   const { user } = useAuth()
   return (
     <section className="relative overflow-hidden">
+      {/* Beams Background */}
+      <div className="absolute inset-0 -z-10">
+        <Beams />
+      </div>
+
       <div className="mx-auto max-w-[1200px] px-6 py-20">
         <div className="text-center">
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight">

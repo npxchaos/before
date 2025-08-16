@@ -6,6 +6,7 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { Logo } from "@/components/ui/Logo";
 import { useState } from "react";
 
 export function Navbar(): ReactElement {
@@ -22,8 +23,8 @@ export function Navbar(): ReactElement {
   return (
     <header className="w-full">
       <div className="mx-auto max-w-[1200px] px-6 py-5 flex items-center justify-between">
-        <Link href="/" className="text-base font-semibold tracking-tight">
-          prompta
+        <Link href="/" className="text-foreground hover:text-foreground/80 transition-colors">
+          <Logo width={94} height={19} />
         </Link>
 
         <nav className="hidden md:flex items-center gap-7">
@@ -60,14 +61,15 @@ export function Navbar(): ReactElement {
           {/* Theme toggle */}
           <button
             aria-label="Toggle theme"
-            className="ml-3 h-6 w-12 rounded-full border border-border relative"
+            className="ml-3 h-6 w-12 rounded-full border border-border relative bg-background"
             type="button"
             onClick={toggleTheme}
           >
             <span
-              className={`absolute top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-foreground transition-all ${
-                theme === "dark" ? "left-1" : "left-7"
-              }`}
+              className="absolute top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-foreground transition-all duration-200"
+              style={{
+                left: theme === "dark" ? "4px" : "28px"
+              }}
             />
           </button>
         </nav>
